@@ -62,9 +62,6 @@ WSGI_APPLICATION = 'api_ninja.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASE_URL = os.environ.get('DATABASE_URL', 'postgres://imed_dba:imed@312@db:5432/banco_imed')
-
-result = urlparse(DATABASE_URL)
 
 DATABASES = {
     'default': {
