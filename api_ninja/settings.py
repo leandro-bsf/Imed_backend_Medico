@@ -14,8 +14,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-t3*1xk#7*sd#s180!hy$6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
-
+ALLOWED_HOSTS = ['85.209.93.14', 'localhost']  ##quando for executar localhost trocar o ip por 127.0.0.1
 
 # Application definition
 
@@ -69,7 +68,7 @@ DATABASES = {
         'NAME': 'banco_imed',
         'USER': 'imed_dba',
         'PASSWORD': 'imed@312',
-        'HOST': 'postgres_db',
+        'HOST': '85.209.93.14',
         'PORT':'5432'
     }
 }
