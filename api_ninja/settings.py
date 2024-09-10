@@ -70,7 +70,7 @@ DATABASES = {
         'NAME': 'banco_imed',
         'USER': 'imed_dba',
         'PASSWORD': 'imed@312',
-        'HOST': 'localhost',
+        'HOST': 'postgres_db',
         'PORT':'5432'
     }
 }
