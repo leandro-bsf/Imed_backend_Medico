@@ -1,19 +1,20 @@
 # Usar a imagem oficial do Python
 FROM python:3.11-slim
 
-
-
 # Definir o diretório de trabalho no container
 WORKDIR /api_ninja
 
 # Copiar os arquivos de requisitos para o container
-COPY requirements.txt /api_ninja/
+COPY requirements.txt .
 
 # Instalar as dependências
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar o código da aplicação para o container
-COPY . /api_ninja/
+COPY . .
 
-# Comando para executar o Django
+# Expor a porta 88
+EXPOSE 88
+
+# Comando para rodar a aplicação com Uvicorn no Python Ninja
 CMD ["python", "manage.py", "runserver", "0.0.0.0:88"]
