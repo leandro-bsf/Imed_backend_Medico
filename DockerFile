@@ -1,17 +1,19 @@
 # Usar a imagem oficial do Python
-FROM python:3.9
+FROM python:3.11-slim
+
+
 
 # Definir o diretório de trabalho no container
-WORKDIR /code
+WORKDIR /api_ninja
 
 # Copiar os arquivos de requisitos para o container
-COPY requirements.txt /code/
+COPY requirements.txt /api_ninja/
 
 # Instalar as dependências
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar o código da aplicação para o container
-COPY . /code/
+COPY . /api_ninja/
 
 # Comando para executar o Django
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:88"]
