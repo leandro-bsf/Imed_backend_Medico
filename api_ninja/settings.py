@@ -100,7 +100,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'pt-br'
 
-TIME_ZONE = 'Amreica/Sao_paulo'
+TIME_ZONE = 'America/Sao_paulo'
 
 USE_I18N = True
 
