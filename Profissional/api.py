@@ -1,36 +1,24 @@
 import bcrypt
 import jwt
 from datetime import datetime, timedelta
-from ninja import NinjaAPI, Router
-from pydantic import BaseModel
-from .models import Profissional
+from ninja import NinjaAPI, Router 
+from .models import Profissional ,HorarioEspecialista , Avaliacao ,EnderecoEspecialista
 from django.http import Http404
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.middleware.csrf import get_token
+from ninja.security import django_auth 
+from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+from .schemas import RegisterSchema, TokenSchema, LoginSchema ,ProfissionalUpdateSchema, HorarioEspecialistaSchema,AvaliacaoSchema,EnderecoEspecialistaSchema
 router = Router()
 api = NinjaAPI()
 
+
 SECRET_KEY = "b&=kv*m2x0^d5z7$p4v+1w#f!@8s9+qc_2%3w-#n@4!e7c&j^y"  # Altere para uma chave secreta forte
 
-# Atualizando o schema de registro para incluir os novos campos
-class RegisterSchema(BaseModel):
-    nome: str
-    telefone: str
-    email: str
-    senha: str
-    dt_nascimento: datetime  # Para armazenar a data de nascimento
-    genero: str  # Pode ser 'M', 'F' ou 'O'
-    id_especialidade: int  # ID da especialidade
-    documento: str  # Documento único, como CPF
 
-class LoginSchema(BaseModel):
-    email: str
-    senha: str
 
-class TokenSchema(BaseModel):
-    access_token: str
-    token_type: str
 
 def hash_password(password: str) -> str:
     salt = bcrypt.gensalt()
@@ -83,3 +71,78 @@ def login(request, data: LoginSchema):
     
 # Adicione o router à instância do NinjaAPI
 api.add_router("/auth", router)
+
+
+
+
+ 
+@api.put('/profissional/editar/{id}/', auth=django_auth)
+def editar_profissional(request, id: int, payload: ProfissionalUpdateSchema):
+    try:
+        # Obtém o objeto Profissional pelo ID
+        profissional = get_object_or_404(Profissional, id=id)
+        
+        # Atualiza os campos do objeto Profissional com os dados recebidos
+        for attr, value in payload.dict(exclude_unset=True).items():
+            setattr(profissional, attr, value)
+
+        # Salva o objeto atualizado no banco de dados
+        profissional.save()
+
+        return {"message": "Dados do profissional atualizados com sucesso!"}
+    
+    except Exception as e:
+        return {"error": str(e)}, 400
+    
+
+@router.post("/horarios/")
+def criar_horario(request, payload: HorarioEspecialistaSchema):
+    # Buscar o profissional pelo ID
+    profissional = get_object_or_404(Profissional, id=payload.id_especialista)
+    
+    # Criar e salvar o novo horário
+    novo_horario = HorarioEspecialista(
+        horario=payload.horarios,
+        id_profissional=profissional
+    )
+    novo_horario.save()
+    
+    return {"success": True, "message": "Horário criado com sucesso", "id_horario": novo_horario.id_horario}
+
+
+@router.post("/avaliacoes")
+def criar_avaliacao(request, data: AvaliacaoSchema):
+    # Buscar o profissional (especialista) pelo ID
+    profissional = get_object_or_404(Profissional, id=data.id_especialista)
+    
+    # Criar e salvar a nova avaliação
+    nova_avaliacao = Avaliacao(
+        estrela=data.estrela,
+        comentario=data.comentario,
+        especialista=profissional,
+        paciente=data.id_paciente
+    )
+    nova_avaliacao.save()
+    
+    return {"message": "Avaliação criada com sucesso", "id_avaliacao": nova_avaliacao.id}
+
+
+@router.post("/enderecos")
+def criar_endereco(request, data: EnderecoEspecialistaSchema):
+    # Buscar o profissional (especialista) pelo ID
+    profissional = get_object_or_404(Profissional, id=data.id_especialista)
+    
+    # Criar e salvar o novo endereço
+    novo_endereco = EnderecoEspecialista(
+        id_especialista=profissional,
+        endereco=data.endereco,
+        cidade=data.cidade,
+        uf=data.uf,
+        cep=data.cep,
+        numero=data.numero,
+        bairro=data.bairro,
+        complemento=data.complemento
+    )
+    novo_endereco.save()
+    
+    return {"message": "Endereço adicionado com sucesso", "id_endereco": novo_endereco.id}
