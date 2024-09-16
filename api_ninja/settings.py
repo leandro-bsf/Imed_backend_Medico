@@ -13,7 +13,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-t3*1xk#7*sd#s180!hy$6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['85.209.93.14', 'localhost']   #quando colocar em produto deixar o ip  85.209.93.14
+ALLOWED_HOSTS = ['85.209.93.14', '85.209.93.14']   #quando colocar em produto deixar o ip  85.209.93.14
                                             #para  desenvolvimento alterar  127.0.0.1
 
 # Application definition
