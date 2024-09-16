@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 88
 
 # Comando para rodar a aplicação com Uvicorn no Python Ninja
-CMD ["uvicorn", "your_project_name.asgi:application", "--host", "0.0.0.0", "--port", "88"]
+CMD ["uvicorn", "imed_backend.asgi:application", "--host", "0.0.0.0", "--port", "88"]
