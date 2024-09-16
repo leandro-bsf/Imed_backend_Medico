@@ -52,7 +52,7 @@ class EnderecoEspecialista(models.Model):
     id_especialista = models.ForeignKey(Profissional, on_delete=models.CASCADE, related_name='enderecos')  # Relaciona com o especialista
     endereco = models.CharField(max_length=255)
     cidade = models.CharField(max_length=100)
-    uf = models.CharField(max_length=2)  # Unidade Federativa (ex: SP, RJ)
+    uf = models.CharField(max_length=2)  # Unidade Federativa (ePx: SP, RJ)
     cep = models.CharField(max_length=10)
     numero = models.CharField(max_length=10)
     bairro = models.CharField(max_length=100)

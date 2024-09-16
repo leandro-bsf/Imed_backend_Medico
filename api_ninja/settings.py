@@ -1,6 +1,5 @@
 from pathlib import Path
 import os
-from urllib.parse import urlparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -14,7 +13,8 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-t3*1xk#7*sd#s180!hy$6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['85.209.93.14', 'localhost']  ##quando for executar localhost trocar o ip por 127.0.0.1 /85.209.93.14
+ALLOWED_HOSTS = ['85.209.93.14', 'localhost']   #quando colocar em produto deixar o ip  85.209.93.14
+                                            #para  desenvolvimento alterar  127.0.0.1
 
 # Application definition
 
@@ -32,7 +32,6 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -60,7 +59,6 @@ WSGI_APPLICATION = 'api_ninja.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
 
 DATABASES = {
     'default': {
@@ -102,6 +100,12 @@ USE_I18N = True
 
 USE_TZ = True
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT authentication
+    ]
+}
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
@@ -111,8 +115,3 @@ STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# CSRF Security
-CSRF_COOKIE_SECURE = True  # Defina como True se estiver usando HTTPS
-CSRF_COOKIE_HTTPONLY = True  # Define o cookie como HttpOnly para proteção extra
-CSRF_COOKIE_NAME = "csrftoken"  # Nome do cookie CSRF

@@ -60,7 +60,11 @@ class AvaliacaoSchema(BaseModel):
     id_especialista: int
     id_paciente: int
 
+class AtualizarAvaliacaoSchema(BaseModel):
+    estrela: int
+    comentario: str
 
+    
 class EnderecoEspecialistaSchema(BaseModel):
     id_especialista: int
     endereco: str
