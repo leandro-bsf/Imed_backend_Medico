@@ -2,36 +2,52 @@ import bcrypt
 import jwt
 from datetime import datetime, timedelta
 from ninja import NinjaAPI, Router 
+from rest_framework.exceptions import AuthenticationFailed
 from .models import Profissional, HorarioEspecialista, Avaliacao, EnderecoEspecialista
 from django.http import Http404
 from ninja.security import HttpBearer
+from corsheaders.middleware import CorsMiddleware
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
-from .schemas import RegisterSchema, TokenSchema, LoginSchema, ProfissionalUpdateSchema, HorarioEspecialistaSchema, AvaliacaoSchema, EnderecoEspecialistaSchema,AtualizarAvaliacaoSchema
-
+import base64
+from ninja.errors import HttpError
+from .schemas import RegisterSchema, TokenSchema, LoginSchema,SchemaCriahorario, ProfissionalSchema, HorarioEspecialistaSchema, AvaliacaoSchema, EnderecoEspecialistaSchema,AtualizarAvaliacaoSchema
+from typing import List  # Import List
 router = Router()
 api = NinjaAPI()
+
 
 SECRET_KEY = "b&=kv*m2x0^d5z7$p4v+1w#f!@8s9+qc_2%3w-#n@4!e7c&j^y"  # Altere para uma chave secreta forte
 
 class JWTAuth(HttpBearer):
     def authenticate(self, request, token):
         try:
+            # Decodifica o token e valida
             payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-            return payload  # Retorna o payload se o token for válido
+            print(f"Token decodificado: {payload}")  # Para debug
+            
+            # Aqui você pode retornar o ID do usuário, se ele estiver no payload
+            return payload.get("user_id")  # Retorna o ID do usuário, ajuste conforme necessário
+
         except jwt.ExpiredSignatureError:
+            print("Token expirado")
             return None  # Token expirado
         except jwt.InvalidTokenError:
+            print("Token inválido")
             return None  # Token inválido
-
 # Instancia a classe de autenticação
 jwt_auth = JWTAuth()
 
 def get_jwt_from_request(request):
+ 
     auth_header = request.headers.get("Authorization")
+    
     if auth_header and auth_header.startswith("Bearer "):
         return auth_header.split(" ")[1]
-    return None
+    else:
+        # Log para indicar que o token não foi encontrado ou está incorreto
+        print("Token não encontrado ou formato incorreto no cabeçalho Authorization")
+        return None
 
 def get_user_id_from_token(token):
     try:
@@ -73,7 +89,8 @@ def register(request, data: RegisterSchema):
         dt_nascimento=data.dt_nascimento,
         genero=data.genero,
         id_especialidade=data.id_especialidade,
-        documento=data.documento
+        documento=data.documento,
+        cpf = data.cpf
     )
     return {"message": "User registered successfully", "user_id": profissional.id}
 
@@ -85,6 +102,7 @@ def login(request, data: LoginSchema):
             raise Http404("Invalid credentials")
 
         access_token = create_access_token(data={"user_id": usuario.id})
+      
         return {"access_token": access_token, "token_type": "bearer"}
     except Profissional.DoesNotExist:
         raise Http404("Invalid credentials")
@@ -93,7 +111,7 @@ def login(request, data: LoginSchema):
 api.add_router("/auth", router)
 
 @api.put('/profissional/editar/{id}/')
-def editar_profissional(request, id: int, payload: ProfissionalUpdateSchema):
+def editar_profissional(request, id: int, payload: ProfissionalSchema):
     try:
         # Obtém o objeto Profissional pelo ID
         profissional = get_object_or_404(Profissional, id=id)
@@ -112,38 +130,135 @@ def editar_profissional(request, id: int, payload: ProfissionalUpdateSchema):
         # Retorna a mensagem de erro como um dicionário com código de status 400
         return {"error": str(e)}, 400
 
+ ##obter dados o profissional logado
+@router.get("/profissional",auth=jwt_auth)
+def get_professional_data(request):
+    # Passo 1: Pegar o token JWT do cabeçalho
+    token = get_jwt_from_request(request)
+ 
+    if not token:
+        return {"detail": "Token not provided or invalid."}, 401
+    
+    # Passo 2: Decodificar o token e pegar o user_id
+    user_id = get_user_id_from_token(token)
+ 
+    if not user_id:
+        return {"detail": "Invalid or expired token."}, 401
+    
+    # Passo 3: Consultar os dados do profissional no banco de dados
+    try:
+        profissional = get_object_or_404(Profissional, id=user_id)
+        foto_base64 = None
+        if profissional.foto:
+            # Aqui, profissional.foto.read() irá ler os bytes da imagem armazenada
+            foto_bytes = profissional.foto.read()
+            foto_base64 = base64.b64encode(foto_bytes).decode('utf-8')
+        return {
+       
+          
+            "nome": profissional.nome,
+            "email": profissional.email,
+            "dt_nascimento": profissional.dt_nascimento,
+            "genero": profissional.genero,
+            "id_especialidade": profissional.id_especialidade,
+            "documento": profissional.documento,
+            "cpf" : profissional.cpf,
+            "telefone" : profissional.telefone,
+            "genero": profissional.genero ,
+            "fuso_horario": profissional.fuso_horario,
+            "valor_consulta": profissional.valor_consulta,
+            "chave_pix": profissional.chave_pix,
+            "tempo_atuacao": profissional.tempo_atuacao,
+            "modalidade_atendimento":  profissional.modalidade_atendimento,
+            "foto": foto_base64,
+             
+        }
+    except Profissional.DoesNotExist:
+        return {"detail": "profissional not found."}, 404
+
+## adiciona horario
 @router.post("/horarios/", auth=jwt_auth)
-def criar_horario(request, payload: HorarioEspecialistaSchema):
-    user_id = request.auth.get("user_id")
-    profissional = get_object_or_404(Profissional, id=user_id)
+def criar_horario(request, payload: SchemaCriahorario):
+    user_id = request.auth
+
+    profissional = get_object_or_404(Profissional,id=user_id)
+    print(" dedeed", profissional)
+    # Cria um novo horário com os dados recebidos
     novo_horario = HorarioEspecialista(
-        horario=payload.horarios,
-        id_profissional=profissional
+        profissional=profissional,
+        dia_semana=payload.dia_semana,
+        hora_inicio=payload.hora_inicio,
+        hora_fim=payload.hora_fim
     )
     novo_horario.save()
-    return {"success": True, "message": "Horário criado com sucesso", "id_horario": novo_horario.id_horario}
+    return {"success": True, "message": "Horário criado com sucesso", "id_horario": novo_horario.id}
 
+ ##edita  horario 
 @router.put("/horarios/{horario_id}/", auth=jwt_auth)
-def editar_horario(request, horario_id: int, payload: HorarioEspecialistaSchema):
-    user_id = request.auth.get("user_id")
-    profissional = get_object_or_404(Profissional, id=user_id)
-    horario = get_object_or_404(HorarioEspecialista, id=horario_id, id_profissional=profissional.id)
+def editar_horario(request, horario_id: int, payload: SchemaCriahorario):
+    
+    user_id = request.auth
+    profissional = get_object_or_404(Profissional,id=user_id)
+    horario = get_object_or_404(HorarioEspecialista, id=horario_id, profissional=profissional)
 
-    horario.horario = payload.horarios
+    # Atualiza os campos do horário com os dados recebidos
+
+    horario.dia_semana = payload.dia_semana
+    horario.hora_inicio = payload.hora_inicio
+    horario.hora_fim = payload.hora_fim
     horario.save()
 
     return {"success": True, "message": "Horário atualizado com sucesso"}
 
+##deleta horario 
+
 @router.delete("/horarios/{horario_id}/", auth=jwt_auth)
 def excluir_horario(request, horario_id: int):
-    user_id = request.auth.get("user_id")
+    user_id = request.auth
+    # Obtém o profissional autenticado
     profissional = get_object_or_404(Profissional, id=user_id)
-    horario = get_object_or_404(HorarioEspecialista, id=horario_id, id_profissional=profissional.id)
+    
+    # Busca o horário com o ID fornecido e que pertence ao profissional autenticado
+    horario = get_object_or_404(HorarioEspecialista, id=horario_id, profissional=profissional)
 
+    # Exclui o horário
     horario.delete()
 
     return {"success": True, "message": "Horário excluído com sucesso"}
 
+
+@router.get("/horarios/", response=List[HorarioEspecialistaSchema], auth=jwt_auth)
+def obter_horarios_profissional(request):
+    user_id = request.auth  # Aqui você deve receber o user_id corretamente autenticado
+    
+    
+    if not user_id:
+        return {"detail": "Unauthorized"}  # Retorna erro se não estiver autenticado
+
+    try:
+        profissional = Profissional.objects.get(id=user_id)
+        # Filtra os horários pelo profissional
+        horarios_especialista = HorarioEspecialista.objects.filter(profissional=profissional)
+
+        # Serializando manualmente para evitar erros de validação
+        resultado = [
+            {
+                "id": horario.id,
+                "profissional": profissional.id,  # Retornando o ID do profissional, não o objeto
+                "dia_semana": horario.dia_semana,
+                "hora_inicio": horario.hora_inicio.strftime('%H:%M'),  # Convertendo para string
+                "hora_fim": horario.hora_fim.strftime('%H:%M')  # Convertendo para string
+            }
+            for horario in horarios_especialista
+        ]
+
+        return resultado
+    except Profissional.DoesNotExist:
+        return {"error": "Profissional não encontrado"}
+    except Exception as e:
+        print(f"Erro inesperado: {str(e)}")
+        raise HttpError(500, "Erro interno no servidor")
+    
 
 @router.post("/avaliacoes", auth=jwt_auth)
 def criar_avaliacao(request, data: AvaliacaoSchema):
@@ -179,6 +294,33 @@ def excluir_avaliacao(request, avaliacao_id: int):
 
     return {"message": "Avaliação excluída com sucesso"}
 
+##retorna avaliações do profissional logado
+
+@router.get("/avaliacoes/", response=List[AvaliacaoSchema], auth=jwt_auth)
+def obter_avaliacoes_profissional(request):
+    user_id = request.auth
+    
+    # Obtém o profissional autenticado
+    profissional = get_object_or_404(Profissional, id=user_id)
+    
+    # Busca todas as avaliações relacionadas ao profissional logado (campo é 'especialista' ao invés de 'profissional')
+    avaliacoes = Avaliacao.objects.filter(especialista=profissional).values('estrela', 'comentario', 'paciente')
+    
+    # Retorna a lista de avaliações
+    return list(avaliacoes)
+
+### retorna avaliacao do profissional atraves do login 
+
+@router.get("/avaliacoes/{id_profissional}", response=List[AvaliacaoSchema])
+def obter_avaliacoes_por_profissional(request, id_profissional: int):
+    # Obtém o profissional com base no ID passado na URL
+    profissional = get_object_or_404(Profissional, id=id_profissional)
+    
+    # Busca todas as avaliações relacionadas ao profissional especificado
+    avaliacoes = Avaliacao.objects.filter(especialista=profissional)
+    
+    # Retorna a lista de avaliações
+    return avaliacoes
 
 
 @router.post("/enderecos", auth=jwt_auth)
@@ -225,3 +367,14 @@ def excluir_endereco(request, endereco_id: int):
 
     return {"message": "Endereço excluído com sucesso"}
 
+###retorna  enderecos do profissional logado
+@router.get("/endereco", response=EnderecoEspecialistaSchema)
+def obter_endereco_profissional(request):
+    # Obtém o profissional logado via JWT
+    profissional = get_object_or_404(Profissional, id=request.auth['user_id'])
+    
+    # Busca o endereço do profissional
+    endereco = get_object_or_404(EnderecoEspecialista, id_especialista=profissional)
+    
+    # Retorna o endereço encontrado
+    return endereco

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel
 from ninja import Schema
 from typing import Optional
-
+from datetime import time
 
 
 
@@ -26,6 +26,8 @@ class RegisterSchema(BaseModel):
     genero: str  # Pode ser 'M', 'F' ou 'O'
     id_especialidade: int  # ID da especialidade
     documento: str  # Documento único, como CPF
+    cpf: str
+    
 
 
 
@@ -33,11 +35,11 @@ class RegisterSchema(BaseModel):
 # Função de edição do profissional
 
 # Define o schema para os dados de atualização do Profissional
-class ProfissionalUpdateSchema(Schema):
+class ProfissionalSchema(Schema):
+  
     nome: Optional[str]
     telefone: Optional[str]
     email: Optional[str]
-    senha: Optional[str]
     dt_nascimento: Optional[str]  # Pode usar date, mas no exemplo, é string
     genero: Optional[str]
     id_especialidade: Optional[int]
@@ -46,21 +48,30 @@ class ProfissionalUpdateSchema(Schema):
     fuso_horario: Optional[str]
     valor_consulta: Optional[float]
     chave_pix: Optional[str]
+    cpf:  Optional[str]
+    modalidade_atendimento: Optional[str]
 
+class SchemaCriahorario(Schema):
 
+    dia_semana: str
+    hora_inicio: str
+    hora_fim: str
 
 class HorarioEspecialistaSchema(Schema):
-    horarios: str
-    id_especialista: int  # Relaciona com o ID do Profissional
+    id: int
+    profissional: int  # 
+    dia_semana: str
+    hora_inicio: str
+    hora_fim: str
+  
 
 
-class AvaliacaoSchema(BaseModel):
+class AvaliacaoSchema(Schema):
     estrela: int
     comentario: str
-    id_especialista: int
-    id_paciente: int
+    paciente: int
 
-class AtualizarAvaliacaoSchema(BaseModel):
+class AtualizarAvaliacaoSchema(Schema):
     estrela: int
     comentario: str
 

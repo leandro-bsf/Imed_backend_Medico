@@ -13,7 +13,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-t3*1xk#7*sd#s180!hy$6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['85.209.93.14', '85.209.93.14']   #quando colocar em produto deixar o ip  85.209.93.14
+ALLOWED_HOSTS = ['85.209.93.14', '85.209.93.14','127.0.0.1', 'localhost']   #quando colocar em produto deixar o ip  85.209.93.14
                                             #para  desenvolvimento alterar  127.0.0.1
 
 # Application definition
@@ -25,18 +25,19 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-     'corsheaders',
+    'corsheaders',
     'Profissional',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-     'corsheaders.middleware.CorsMiddleware',
+    
 ]
 
 ROOT_URLCONF = 'api_ninja.urls'
