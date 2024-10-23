@@ -1,9 +1,10 @@
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from pydantic import BaseModel
 from ninja import Schema
 from typing import Optional
 from datetime import time
+
 
 
 
@@ -12,8 +13,10 @@ class LoginSchema(BaseModel):
     senha: str
 
 class TokenSchema(BaseModel):
+
     access_token: str
     token_type: str
+    user_id: int
 
 
 # Atualizando o schema de registro para incluir os novos campos
@@ -36,20 +39,22 @@ class RegisterSchema(BaseModel):
 
 # Define o schema para os dados de atualização do Profissional
 class ProfissionalSchema(Schema):
-  
-    nome: Optional[str]
-    telefone: Optional[str]
-    email: Optional[str]
-    dt_nascimento: Optional[str]  # Pode usar date, mas no exemplo, é string
-    genero: Optional[str]
-    id_especialidade: Optional[int]
-    documento: Optional[str]
-    tempo_atuacao: Optional[int]
-    fuso_horario: Optional[str]
-    valor_consulta: Optional[float]
-    chave_pix: Optional[str]
-    cpf:  Optional[str]
-    modalidade_atendimento: Optional[str]
+    
+    nome: Optional[str]  # Campo opcional
+    telefone:Optional[str]  # Campo opcional, com limite de tamanho
+    email: Optional[str]   # Campo opcional, deve ser um email válido
+    senha: Optional[str] 
+    dt_nascimento: Optional[datetime]  # Campo opcional
+    genero: Optional[str]  # Campo opcional
+    id_especialidade: Optional[int]  # Campo opcional
+    documento: Optional[str]   # Campo opcional
+    cpf: Optional[str]   # Campo opcional
+    tempo_atuacao: Optional[int]  # Campo opcional
+    #foto: Optional[str]  # Para o caminho da foto, você pode adaptar se necessário
+    fuso_horario: Optional[str] = 'UTC'  # Campo opcional, com valor padrão
+    valor_consulta: Optional[float]  # Campo opcional
+    chave_pix: Optional[str]  # Campo opcional
+    modalidade_atendimento: Optional[str]  # Campo opcional
 
 class SchemaCriahorario(Schema):
 

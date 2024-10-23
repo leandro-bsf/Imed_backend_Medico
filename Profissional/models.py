@@ -78,50 +78,50 @@ class EnderecoEspecialista(models.Model):
 ## Parte do agendamento ####
 
 
-class Agendamento(models.Model):
-    MODALIDADE_ATENDIMENTO_CHOICES = [
-        ('presencial', 'Presencial'),
-        ('online', 'Online'),
-    ]
+# class Agendamento(models.Model):
+#     MODALIDADE_ATENDIMENTO_CHOICES = [
+#         ('presencial', 'Presencial'),
+#         ('online', 'Online'),
+#     ]
 
-    id_paciente = models.IntegerField()  # Id do paciente será um número que será referenciado de outro projeto
-    id_especialista = models.ForeignKey('Profissional.Profissional', on_delete=models.CASCADE, related_name='agendamentos')
-    id_horario = models.TimeField()
-    data = models.DateField()
-    modalidade_atendimento = models.CharField(
-        max_length=10,
-        choices=MODALIDADE_ATENDIMENTO_CHOICES,
-        default='Online'
-    )
-    id_reagendamento = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='reagendamentos')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+#     id_paciente = models.IntegerField()  # Id do paciente será um número que será referenciado de outro projeto
+#     id_especialista = models.ForeignKey('Profissional.Profissional', on_delete=models.CASCADE, related_name='agendamentos')
+#     id_horario = models.TimeField()
+#     data = models.DateField()
+#     modalidade_atendimento = models.CharField(
+#         max_length=10,
+#         choices=MODALIDADE_ATENDIMENTO_CHOICES,
+#         default='Online'
+#     )
+#     id_reagendamento = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='reagendamentos')
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return f"Agendamento {self.id} - Especialista: {self.id_especialista} em {self.data}"
-
-
+#     def __str__(self):
+#         return f"Agendamento {self.id} - Especialista: {self.id_especialista} em {self.data}"
 
 
-class PagamentoConsulta(models.Model):
-    STATUS_PAGAMENTO_CHOICES = [
-        ('pendente', 'Pendente'),
-        ('aprovado', 'Aprovado'),
-        ('recusado', 'Recusado'),
-        ('estornado', 'Estornado'),
-    ]
-    status_pagamento = models.CharField(
-        max_length=10,
-        choices=STATUS_PAGAMENTO_CHOICES,
-        default='pendente'
-    )
-    id_paciente = models.IntegerField(on_delete=models.CASCADE, related_name='pagamentos')
-    id_especialista = models.ForeignKey(Profissional, on_delete=models.CASCADE, related_name='pagamentos')
-    comprovante_pgt = models.FileField(upload_to='comprovantes/', blank=True, null=True)  # Campo para upload do comprovante de pagamento
-    dt_aprovacao = models.DateTimeField(null=True, blank=True)  # Data e hora da aprovação do pagamento
-    id_reagendamento = models.ForeignKey('Agendamento', on_delete=models.SET_NULL, null=True, blank=True, related_name='pagamentos_reagendados')
-    created_at = models.DateTimeField(auto_now_add=True)  # Data de criação
-    updated_at = models.DateTimeField(auto_now=True)  # Data de atualização automática
 
-    def __str__(self):
-        return f"Pagamento {self.id_pagamento} - Paciente: {self.id_paciente} - Especialista: {self.id_especialista} - Status: {self.status_pagamento}"
+
+# class PagamentoConsulta(models.Model):
+#     STATUS_PAGAMENTO_CHOICES = [
+#         ('pendente', 'Pendente'),
+#         ('aprovado', 'Aprovado'),
+#         ('recusado', 'Recusado'),
+#         ('estornado', 'Estornado'),
+#     ]
+#     status_pagamento = models.CharField(
+#         max_length=10,
+#         choices=STATUS_PAGAMENTO_CHOICES,
+#         default='pendente'
+#     )
+#     id_paciente = models.IntegerField(on_delete=models.CASCADE, related_name='pagamentos')
+#     id_especialista = models.ForeignKey(Profissional, on_delete=models.CASCADE, related_name='pagamentos')
+#     comprovante_pgt = models.FileField(upload_to='comprovantes/', blank=True, null=True)  # Campo para upload do comprovante de pagamento
+#     dt_aprovacao = models.DateTimeField(null=True, blank=True)  # Data e hora da aprovação do pagamento
+#     id_reagendamento = models.ForeignKey('Agendamento', on_delete=models.SET_NULL, null=True, blank=True, related_name='pagamentos_reagendados')
+#     created_at = models.DateTimeField(auto_now_add=True)  # Data de criação
+#     updated_at = models.DateTimeField(auto_now=True)  # Data de atualização automática
+
+#     def __str__(self):
+#         return f"Pagamento {self.id_pagamento} - Paciente: {self.id_paciente} - Especialista: {self.id_especialista} - Status: {self.status_pagamento}"

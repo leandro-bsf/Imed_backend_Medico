@@ -8,7 +8,6 @@ from django.http import Http404
 from ninja.security import HttpBearer
 from corsheaders.middleware import CorsMiddleware
 from django.shortcuts import get_object_or_404
-from django.http import JsonResponse
 import base64
 from ninja.errors import HttpError
 from .schemas import RegisterSchema, TokenSchema, LoginSchema,SchemaCriahorario, ProfissionalSchema, HorarioEspecialistaSchema, AvaliacaoSchema, EnderecoEspecialistaSchema,AtualizarAvaliacaoSchema
@@ -102,46 +101,74 @@ def login(request, data: LoginSchema):
             raise Http404("Invalid credentials")
 
         access_token = create_access_token(data={"user_id": usuario.id})
-      
+
+        # Retorna o access token, o tipo de token e o ID do usuário
+       
         return {"access_token": access_token, "token_type": "bearer"}
+    
+    
     except Profissional.DoesNotExist:
         raise Http404("Invalid credentials")
 
 # Adiciona o router à instância do NinjaAPI
 api.add_router("/auth", router)
 
-@api.put('/profissional/editar/{id}/')
-def editar_profissional(request, id: int, payload: ProfissionalSchema):
-    try:
-        # Obtém o objeto Profissional pelo ID
-        profissional = get_object_or_404(Profissional, id=id)
-        
-        # Atualiza os campos do objeto Profissional com os dados recebidos
-        for attr, value in payload.dict(exclude_unset=True).items():
-            setattr(profissional, attr, value)
 
+
+@api.put('/profissional/editar/', auth=jwt_auth)
+def editar_profissional(request, payload: ProfissionalSchema):
+    try:
+        # Passo 1: Pegar o token JWT do cabeçalho
+        token = get_jwt_from_request(request)
+        
+        if not token:
+            return {"detail": "Token not provided or invalid."}, 401
+        
+        # Passo 2: Decodificar o token e pegar o user_id
+        user_id = get_user_id_from_token(token)
+        if not user_id:
+            return {"detail": "Invalid or expired token."}, 401
+        
+        # Passo 3: Consultar os dados do profissional no banco de dados pelo user_id
+        profissional = get_object_or_404(Profissional, id=user_id)
+
+        profissional.nome =payload.nome
+        profissional.telefone = payload.telefone
+        profissional.email = payload.email
+        profissional.dt_nascimento = payload.dt_nascimento
+        profissional.genero =  payload.genero
+        profissional.id_especialidade = payload.id_especialidade
+        profissional.documento = payload.documento
+        profissional.cpf = payload.cpf
+        profissional.tempo_atuacao = payload.tempo_atuacao
+       # profissional.foto = payload.foto
+        profissional.fuso_horario = payload.fuso_horario
+        profissional.valor_consulta = payload.valor_consulta
+        profissional.chave_pix = payload.chave_pix
+        profissional.modalidade_atendimento = payload.modalidade_atendimento
         # Salva o objeto atualizado no banco de dados
         profissional.save()
 
         # Retorna a resposta como um dicionário
         return {"message": "Dados do profissional atualizados com sucesso!"}
-    
+
     except Exception as e:
         # Retorna a mensagem de erro como um dicionário com código de status 400
         return {"error": str(e)}, 400
 
+
  ##obter dados o profissional logado
-@router.get("/profissional",auth=jwt_auth)
+@router.get("/profissional", auth=jwt_auth)
 def get_professional_data(request):
     # Passo 1: Pegar o token JWT do cabeçalho
     token = get_jwt_from_request(request)
- 
+    
     if not token:
         return {"detail": "Token not provided or invalid."}, 401
     
     # Passo 2: Decodificar o token e pegar o user_id
     user_id = get_user_id_from_token(token)
- 
+    
     if not user_id:
         return {"detail": "Invalid or expired token."}, 401
     
@@ -149,32 +176,38 @@ def get_professional_data(request):
     try:
         profissional = get_object_or_404(Profissional, id=user_id)
         foto_base64 = None
+        
         if profissional.foto:
-            # Aqui, profissional.foto.read() irá ler os bytes da imagem armazenada
-            foto_bytes = profissional.foto.read()
-            foto_base64 = base64.b64encode(foto_bytes).decode('utf-8')
+            try:
+                # Certifique-se de que o arquivo da foto realmente existe
+                with profissional.foto.open("rb") as foto_file:
+                    foto_bytes = foto_file.read()
+                    foto_base64 = base64.b64encode(foto_bytes).decode('utf-8')
+            except FileNotFoundError:
+                return {"detail": "Foto não encontrada."}, 404
+            except Exception as e:
+                return {"detail": f"Erro ao abrir a foto: {str(e)}"}, 500
+        
+        # Retorna os dados do profissional
         return {
-       
-          
             "nome": profissional.nome,
             "email": profissional.email,
             "dt_nascimento": profissional.dt_nascimento,
             "genero": profissional.genero,
             "id_especialidade": profissional.id_especialidade,
             "documento": profissional.documento,
-            "cpf" : profissional.cpf,
-            "telefone" : profissional.telefone,
-            "genero": profissional.genero ,
+            "cpf": profissional.cpf,
+            "telefone": profissional.telefone,
             "fuso_horario": profissional.fuso_horario,
             "valor_consulta": profissional.valor_consulta,
             "chave_pix": profissional.chave_pix,
             "tempo_atuacao": profissional.tempo_atuacao,
-            "modalidade_atendimento":  profissional.modalidade_atendimento,
-            "foto": foto_base64,
-             
+            "modalidade_atendimento": profissional.modalidade_atendimento,
+          ##  "foto": foto_base64,
         }
+    
     except Profissional.DoesNotExist:
-        return {"detail": "profissional not found."}, 404
+        return {"detail": "Profissional não encontrado."}, 404
 
 ## adiciona horario
 @router.post("/horarios/", auth=jwt_auth)
