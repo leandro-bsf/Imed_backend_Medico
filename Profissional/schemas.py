@@ -16,7 +16,7 @@ class TokenSchema(BaseModel):
 
     access_token: str
     token_type: str
-    user_id: int
+    
 
 
 # Atualizando o schema de registro para incluir os novos campos
@@ -82,7 +82,6 @@ class AtualizarAvaliacaoSchema(Schema):
 
     
 class EnderecoEspecialistaSchema(BaseModel):
-    id_especialista: int
     endereco: str
     cidade: str
     uf: str
@@ -90,3 +89,15 @@ class EnderecoEspecialistaSchema(BaseModel):
     numero: str
     bairro: str
     complemento: Optional[str] = None
+
+class EnderecoEspecialistaSchemaList(BaseModel):
+    id: int
+    endereco: str
+    cidade: str
+    uf: str
+    cep: str
+    numero: str
+    bairro: str
+    complemento: Optional[str] = None
+
+       

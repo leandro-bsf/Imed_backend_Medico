@@ -10,7 +10,7 @@ from corsheaders.middleware import CorsMiddleware
 from django.shortcuts import get_object_or_404
 import base64
 from ninja.errors import HttpError
-from .schemas import RegisterSchema, TokenSchema, LoginSchema,SchemaCriahorario, ProfissionalSchema, HorarioEspecialistaSchema, AvaliacaoSchema, EnderecoEspecialistaSchema,AtualizarAvaliacaoSchema
+from .schemas import RegisterSchema, TokenSchema,EnderecoEspecialistaSchemaList, LoginSchema,SchemaCriahorario, ProfissionalSchema, HorarioEspecialistaSchema, AvaliacaoSchema, EnderecoEspecialistaSchema,AtualizarAvaliacaoSchema
 from typing import List  # Import List
 router = Router()
 api = NinjaAPI()
@@ -215,7 +215,7 @@ def criar_horario(request, payload: SchemaCriahorario):
     user_id = request.auth
 
     profissional = get_object_or_404(Profissional,id=user_id)
-    print(" dedeed", profissional)
+   
     # Cria um novo horário com os dados recebidos
     novo_horario = HorarioEspecialista(
         profissional=profissional,
@@ -294,13 +294,16 @@ def obter_horarios_profissional(request):
     
 
 @router.post("/avaliacoes", auth=jwt_auth)
-def criar_avaliacao(request, data: AvaliacaoSchema):
-    profissional = get_object_or_404(Profissional, id=data.id_especialista)
+def criar_avaliacao(request,  payload: AvaliacaoSchema):
+    user_id = request.auth
+
+    profissional = get_object_or_404(Profissional, id=user_id)
+
     nova_avaliacao = Avaliacao(
-        estrela=data.estrela,
-        comentario=data.comentario,
+        estrela=payload.estrela,
+        comentario=payload.comentario,
         especialista=profissional,
-        paciente=data.id_paciente
+        paciente=payload.paciente
     )
     nova_avaliacao.save()
     return {"message": "Avaliação criada com sucesso", "id_avaliacao": nova_avaliacao.id}
@@ -358,7 +361,13 @@ def obter_avaliacoes_por_profissional(request, id_profissional: int):
 
 @router.post("/enderecos", auth=jwt_auth)
 def criar_endereco(request, data: EnderecoEspecialistaSchema):
-    profissional = get_object_or_404(Profissional, id=data.id_especialista)
+    # Se `request.auth` é o `id_especialista` diretamente, use-o como tal
+    id_especialista = request.auth  # Aqui o id_especialista é diretamente o valor inteiro
+    
+    # Busca o profissional pelo ID extraído do token
+    profissional = get_object_or_404(Profissional, id=id_especialista)
+    
+    # Cria um novo endereço com base nos dados recebidos e no profissional
     novo_endereco = EnderecoEspecialista(
         id_especialista=profissional,
         endereco=data.endereco,
@@ -370,12 +379,14 @@ def criar_endereco(request, data: EnderecoEspecialistaSchema):
         complemento=data.complemento
     )
     novo_endereco.save()
+    
+    # Retorna uma resposta de sucesso com o ID do endereço criado
     return {"message": "Endereço adicionado com sucesso", "id_endereco": novo_endereco.id}
 
 
 @router.put("/enderecos/{endereco_id}", auth=jwt_auth)
 def editar_endereco(request, endereco_id: int, data: EnderecoEspecialistaSchema):
-    user_id = request.auth.get("user_id")
+    user_id = request.auth
     profissional = get_object_or_404(Profissional, id=user_id)
     endereco = get_object_or_404(EnderecoEspecialista, id=endereco_id, id_especialista=profissional.id)
 
@@ -392,7 +403,7 @@ def editar_endereco(request, endereco_id: int, data: EnderecoEspecialistaSchema)
 
 @router.delete("/enderecos/{endereco_id}", auth=jwt_auth)
 def excluir_endereco(request, endereco_id: int):
-    user_id = request.auth.get("user_id")
+    user_id = request.auth
     profissional = get_object_or_404(Profissional, id=user_id)
     endereco = get_object_or_404(EnderecoEspecialista, id=endereco_id, id_especialista=profissional.id)
 
@@ -401,13 +412,43 @@ def excluir_endereco(request, endereco_id: int):
     return {"message": "Endereço excluído com sucesso"}
 
 ###retorna  enderecos do profissional logado
-@router.get("/endereco", response=EnderecoEspecialistaSchema)
+@router.get("/endereco/", response=List[EnderecoEspecialistaSchemaList], auth=jwt_auth)
 def obter_endereco_profissional(request):
-    # Obtém o profissional logado via JWT
-    profissional = get_object_or_404(Profissional, id=request.auth['user_id'])
+    user_id = request.auth  # Aqui você deve receber o user_id corretamente autenticado
     
-    # Busca o endereço do profissional
-    endereco = get_object_or_404(EnderecoEspecialista, id_especialista=profissional)
-    
-    # Retorna o endereço encontrado
-    return endereco
+    if not user_id:
+        return {"detail": "Unauthorized"}  # Retorna erro se não estiver autenticado
+
+    try:
+        # Busca o profissional pelo ID extraído do token
+        profissional = Profissional.objects.get(id=user_id)
+        
+        # Filtra os endereços pelo profissional
+        enderecos_especialista = EnderecoEspecialista.objects.filter(id_especialista=profissional)
+
+        # Serializando manualmente para evitar erros de validação
+        resultado = [
+            {
+                "id": endereco.id,
+                "id_especialista": profissional.id,  # Retornando o ID do profissional, não o objeto
+                "endereco": endereco.endereco,
+                "cidade": endereco.cidade,
+                "uf": endereco.uf,
+                "cep": endereco.cep,
+                "numero": endereco.numero,
+                "bairro": endereco.bairro,
+                "complemento": endereco.complemento,
+            }
+            for endereco in enderecos_especialista
+        ]
+
+        if not resultado:
+            return {"detail": "Nenhum endereço encontrado para o profissional."}
+
+        return resultado
+
+    except Profissional.DoesNotExist:
+        return {"error": "Profissional não encontrado"}
+    except Exception as e:
+        print(f"Erro inesperado: {str(e)}")
+        raise HttpError(500, "Erro interno no servidor")
