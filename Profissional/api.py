@@ -1,16 +1,17 @@
 import bcrypt
 import jwt
-from datetime import datetime, timedelta
+from django.utils import timezone
+from datetime import datetime, timedelta ,date
 from ninja import NinjaAPI, Router 
 from rest_framework.exceptions import AuthenticationFailed
-from .models import Profissional, HorarioEspecialista, Avaliacao, EnderecoEspecialista
+from .models import Profissional,Paciente, HorarioEspecialista, Avaliacao,Agendamento, EnderecoEspecialista
 from django.http import Http404
 from ninja.security import HttpBearer
 from corsheaders.middleware import CorsMiddleware
 from django.shortcuts import get_object_or_404
 import base64
 from ninja.errors import HttpError
-from .schemas import RegisterSchema, TokenSchema,EnderecoEspecialistaSchemaList, LoginSchema,SchemaCriahorario, ProfissionalSchema, HorarioEspecialistaSchema, AvaliacaoSchema, EnderecoEspecialistaSchema,AtualizarAvaliacaoSchema
+from .schemas import RegisterSchema,AgendamentoCreateSchema ,PacienteSchema,PacienteUpdateSchema ,PacienteOutSchemaList , TokenSchema,EnderecoEspecialistaSchemaList, LoginSchema,SchemaCriahorario, ProfissionalSchema, HorarioEspecialistaSchema, AvaliacaoSchema, EnderecoEspecialistaSchema,AtualizarAvaliacaoSchema
 from typing import List  # Import List
 router = Router()
 api = NinjaAPI()
@@ -452,3 +453,190 @@ def obter_endereco_profissional(request):
     except Exception as e:
         print(f"Erro inesperado: {str(e)}")
         raise HttpError(500, "Erro interno no servidor")
+    
+@router.post("/paciente/" , auth=jwt_auth)
+def adicionar_paciente(request, paciente: PacienteSchema):
+    # Obtendo o id do profissional do request.auth (autenticação do usuário)
+    user_id = request.auth
+
+    # Buscando o profissional no banco de dados (assumindo que o user_id é o id do Profissional)
+    profissional = get_object_or_404(Profissional, id=user_id)
+
+    # Criando o novo paciente
+    novo_paciente = Paciente.objects.create(
+        nome=paciente.nome,
+        email=paciente.email,
+        celular=paciente.celular,
+        genero=paciente.genero,
+        dt_nascimento=paciente.dt_nascimento,
+        foto=paciente.foto,
+        cpf=paciente.cpf,
+        fuso_horario=paciente.fuso_horario,
+        id_profissional=profissional  # Ligando ao profissional autenticado
+    )
+
+    return {"msg": "Paciente criado com sucesso", "paciente_id": novo_paciente.id}
+
+
+# Endpoint para listar os pacientes do médico logado
+@router.get("/pacientes/" , auth=jwt_auth)
+def listar_pacientes(request):
+    # Obtendo o id do profissional do request.auth (autenticação do usuário)
+    user_id = request.auth
+
+    # Buscando o profissional autenticado no banco de dados
+    profissional = get_object_or_404(Profissional, id=user_id)
+
+    # Filtrando os pacientes do profissional
+    pacientes = Paciente.objects.filter(id_profissional=profissional)
+
+    # Retornando a lista de pacientes
+    return [PacienteOutSchemaList.from_orm(paciente) for paciente in pacientes]
+
+# Endpoint para deletar um paciente do médico logado
+@router.delete("/paciente/{paciente_id}/" , auth=jwt_auth)
+def deletar_paciente(request, paciente_id: int):
+    # Obtendo o id do profissional do request.auth (autenticação do usuário)
+    user_id = request.auth
+
+    # Buscando o profissional autenticado no banco de dados
+    profissional = get_object_or_404(Profissional, id=user_id)
+
+    # Buscando o paciente que pertence ao profissional autenticado
+    paciente = get_object_or_404(Paciente, id=paciente_id, id_profissional=profissional)
+
+    # Deletando o paciente
+    paciente.delete()
+    return {"msg": "Paciente Excluido com sucesso", "paciente_id": paciente_id}
+
+# Endpoint para atualizar os dados do paciente do médico logado
+@router.put("/paciente/{paciente_id}/" ,  auth=jwt_auth)
+def atualizar_paciente(request, paciente_id: int, dados: PacienteUpdateSchema):
+    # Obtendo o id do profissional do request.auth (autenticação do usuário)
+    user_id = request.auth
+
+    # Buscando o profissional autenticado no banco de dados
+    profissional = get_object_or_404(Profissional, id=user_id)
+
+    # Buscando o paciente que pertence ao profissional autenticado
+    paciente = get_object_or_404(Paciente, id=paciente_id, id_profissional=profissional)
+
+    # Atualizando os campos do paciente com os novos dados, se fornecidos
+    for attr, value in dados.dict(exclude_unset=True).items():
+        setattr(paciente, attr, value)
+    
+    # Salvando as mudanças no banco de dados
+    paciente.save()
+
+    return {"msg": "Paciente atualizado com sucesso", "paciente_id": paciente_id}
+
+# Mapeamento dos dias da semana
+DIA_SEMANA_MAPA = {
+    0: 'SEgunda',
+    1: 'terca',
+    2: 'quarta',
+    3: 'quinta',
+    4: 'sexta',
+    5: 'sabado',
+    6: 'domingo'
+}
+
+
+
+@router.get("/agendamentos/disponiveis/", auth=jwt_auth)
+def listar_agendamentos_disponiveis(request):
+    """
+    Lista todos os horários disponíveis para o profissional autenticado.
+    """
+    user_id = request.auth  # Obtém o ID do profissional autenticado
+    print(f"ID do profissional autenticado: {user_id}")  # Verifique o ID
+
+    # Filtra os horários do profissional logado
+    horarios_profissional = HorarioEspecialista.objects.filter(profissional_id=user_id)
+    print(f"Horários do profissional: {horarios_profissional}")  # Verifique se retorna horários
+
+    if not horarios_profissional.exists():
+        return {"message": "Nenhum horário encontrado para este profissional."}
+
+    horarios_disponiveis = []
+    data_atual = timezone.now().date()  # Use timezone.now() para pegar a data atual corretamente
+
+    # Itera sobre cada horário do profissional e verifica disponibilidade para datas futuras
+    for horario in horarios_profissional:
+        dia_semana = horario.dia_semana
+        hora_inicio = horario.hora_inicio
+        hora_fim = horario.hora_fim
+       
+        # Itera sobre as próximas duas semanas para verificar disponibilidade
+        for i in range(1, 15):  # 14 dias
+            data_verificacao = data_atual + timedelta(days=i)
+            dia_da_semana = DIA_SEMANA_MAPA[data_verificacao.weekday()] 
+            print("dia semana ", dia_da_semana)
+           
+            # Verifica se o dia da semana corresponde ao que está cadastrado
+            if dia_da_semana == dia_semana:
+                # Verifica se já existe agendamento nesse dia e horário
+                 print("entrou")
+                 agendamento_existente = Agendamento.objects.filter(
+                    profissional_id=user_id,
+                    data=data_verificacao,
+                    horario_id=horario.id,
+                    horario__hora_inicio__lte=hora_fim,
+                    horario__hora_fim__gte=hora_inicio,
+                    status="PENDENTE"
+                ).exists()
+
+
+
+                 # Apenas adiciona o horário se não houver agendamento pendente
+                 if not agendamento_existente:
+                    horarios_disponiveis.append({
+                        "data": data_verificacao,
+                        "hora_inicio": hora_inicio,
+                        "hora_fim": hora_fim
+                    })
+
+    return {"horarios_disponiveis": horarios_disponiveis}
+
+@router.post("/agendamentos/" , auth=jwt_auth)
+def criar_agendamento(request, agendamento_data: AgendamentoCreateSchema):
+    try:
+        # Extrai o user_id do request.auth
+        user_id = request.auth
+        profissional = Profissional.objects.get(id=user_id)
+
+        # Obtenha o paciente e o horário usando os IDs do schema
+        paciente = Paciente.objects.get(id=agendamento_data.paciente_id)
+        horario = HorarioEspecialista.objects.get(id=agendamento_data.horario_id)
+
+        # Verifique dat já existe um agendamento pendente para o horário
+        agendamento_existente = Agendamento.objects.filter(
+            profissional=profissional,
+            paciente=paciente,
+            horario=horario,
+            data=agendamento_data.data,
+            status="PENDENTE"
+        ).exists()
+
+        if agendamento_existente:
+            return {"message": "Já existe um agendamento pendente para este horário."}
+
+        # Cria o novo agendamento
+        novo_agendamento = Agendamento.objects.create(
+            profissional=profissional,
+            paciente=paciente,
+            horario=horario,
+            data=agendamento_data.data,
+            status="PENDENTE"
+        )
+
+        return {"message": "Agendamento criado com sucesso!", "agendamento_id": novo_agendamento.id}
+
+    except Profissional.DoesNotExist:
+        return {"message": "Profissional não encontrado."}, 404
+    except Paciente.DoesNotExist:
+        return {"message": "Paciente não encontrado."}, 404
+    except HorarioEspecialista.DoesNotExist:
+        return {"message": "Horário não encontrado."}, 404
+    except Exception as e:
+        return {"message": f"Erro ao criar agendamento: {str(e)}"}, 500

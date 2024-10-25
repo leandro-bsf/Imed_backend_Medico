@@ -1,5 +1,5 @@
 
-from datetime import datetime
+from datetime import datetime , date
 from pydantic import BaseModel
 from ninja import Schema
 from typing import Optional
@@ -68,6 +68,7 @@ class HorarioEspecialistaSchema(Schema):
     dia_semana: str
     hora_inicio: str
     hora_fim: str
+
   
 
 
@@ -100,4 +101,38 @@ class EnderecoEspecialistaSchemaList(BaseModel):
     bairro: str
     complemento: Optional[str] = None
 
-       
+class PacienteSchema(Schema):
+    nome: str
+    email: str
+    celular: str
+    genero: str
+    dt_nascimento: datetime
+    foto: Optional[str] = None
+    cpf: str
+    fuso_horario: str       
+class PacienteOutSchemaList(Schema):
+    id: int
+    nome: str
+    email: str
+    celular: str
+    genero: str
+    dt_nascimento: datetime
+    foto: str
+    cpf: str
+    fuso_horario: str
+
+# Schema para atualização de dados do Paciente
+class PacienteUpdateSchema(Schema):
+    nome: Optional[str]
+    email: Optional[str]
+    celular: Optional[str]
+    genero: Optional[str]
+    dt_nascimento: Optional[datetime]
+    foto: Optional[str]
+    cpf: Optional[str]
+    fuso_horario: Optional[str]
+
+class AgendamentoCreateSchema(Schema):
+    paciente_id: int
+    horario_id: int
+    data: date
