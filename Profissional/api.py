@@ -10,8 +10,9 @@ from ninja.security import HttpBearer
 from corsheaders.middleware import CorsMiddleware
 from django.shortcuts import get_object_or_404
 import base64
+from django.http import JsonResponse
 from ninja.errors import HttpError
-from .schemas import RegisterSchema,AgendamentoCreateSchema ,PacienteSchema,PacienteUpdateSchema ,PacienteOutSchemaList , TokenSchema,EnderecoEspecialistaSchemaList, LoginSchema,SchemaCriahorario, ProfissionalSchema, HorarioEspecialistaSchema, AvaliacaoSchema, EnderecoEspecialistaSchema,AtualizarAvaliacaoSchema
+from .schemas import RegisterSchema,AgendamentoCreateSchema, AtualizarAgendamentoSchema ,PacienteSchema,PacienteUpdateSchema ,PacienteOutSchemaList , TokenSchema,EnderecoEspecialistaSchemaList, LoginSchema,SchemaCriahorario, ProfissionalSchema, HorarioEspecialistaSchema, AvaliacaoSchema, EnderecoEspecialistaSchema,AtualizarAvaliacaoSchema
 from typing import List  # Import List
 router = Router()
 api = NinjaAPI()
@@ -479,18 +480,11 @@ def adicionar_paciente(request, paciente: PacienteSchema):
 
 
 # Endpoint para listar os pacientes do médico logado
-@router.get("/pacientes/" , auth=jwt_auth)
+@router.get("/pacientes/", auth=jwt_auth)
 def listar_pacientes(request):
-    # Obtendo o id do profissional do request.auth (autenticação do usuário)
     user_id = request.auth
-
-    # Buscando o profissional autenticado no banco de dados
     profissional = get_object_or_404(Profissional, id=user_id)
-
-    # Filtrando os pacientes do profissional
     pacientes = Paciente.objects.filter(id_profissional=profissional)
-
-    # Retornando a lista de pacientes
     return [PacienteOutSchemaList.from_orm(paciente) for paciente in pacientes]
 
 # Endpoint para deletar um paciente do médico logado
@@ -532,7 +526,7 @@ def atualizar_paciente(request, paciente_id: int, dados: PacienteUpdateSchema):
 
 # Mapeamento dos dias da semana
 DIA_SEMANA_MAPA = {
-    0: 'SEgunda',
+    0: 'Segunda',
     1: 'terca',
     2: 'quarta',
     3: 'quinta',
@@ -598,18 +592,18 @@ def listar_agendamentos_disponiveis(request):
 
     return {"horarios_disponiveis": horarios_disponiveis}
 
-@router.post("/agendamentos/" , auth=jwt_auth)
+@router.post("/agendamentos/", auth=jwt_auth)
 def criar_agendamento(request, agendamento_data: AgendamentoCreateSchema):
     try:
         # Extrai o user_id do request.auth
         user_id = request.auth
         profissional = Profissional.objects.get(id=user_id)
-
+        
         # Obtenha o paciente e o horário usando os IDs do schema
         paciente = Paciente.objects.get(id=agendamento_data.paciente_id)
         horario = HorarioEspecialista.objects.get(id=agendamento_data.horario_id)
 
-        # Verifique dat já existe um agendamento pendente para o horário
+        # Verifique se já existe um agendamento pendente para o horário
         agendamento_existente = Agendamento.objects.filter(
             profissional=profissional,
             paciente=paciente,
@@ -619,7 +613,7 @@ def criar_agendamento(request, agendamento_data: AgendamentoCreateSchema):
         ).exists()
 
         if agendamento_existente:
-            return {"message": "Já existe um agendamento pendente para este horário."}
+            return JsonResponse({"message": "Já existe um agendamento pendente para este horário."}, status=400)
 
         # Cria o novo agendamento
         novo_agendamento = Agendamento.objects.create(
@@ -630,13 +624,44 @@ def criar_agendamento(request, agendamento_data: AgendamentoCreateSchema):
             status="PENDENTE"
         )
 
-        return {"message": "Agendamento criado com sucesso!", "agendamento_id": novo_agendamento.id}
+        return JsonResponse({"message": "Agendamento criado com sucesso!", "agendamento_id": novo_agendamento.id}, status=201)
 
     except Profissional.DoesNotExist:
-        return {"message": "Profissional não encontrado."}, 404
+        return JsonResponse({"message": "Profissional não encontrado."}, status=404)
     except Paciente.DoesNotExist:
-        return {"message": "Paciente não encontrado."}, 404
+        return JsonResponse({"message": "Paciente não encontrado."}, status=404)
     except HorarioEspecialista.DoesNotExist:
-        return {"message": "Horário não encontrado."}, 404
+        return JsonResponse({"message": "Horário não encontrado."}, status=404)
     except Exception as e:
-        return {"message": f"Erro ao criar agendamento: {str(e)}"}, 500
+        return JsonResponse({"message": f"Erro ao criar agendamento: {str(e)}"}, status=500)
+    
+
+@router.put("/agendamentos/{agendamento_id}", auth=jwt_auth)
+def atualizar_agendamento(request, agendamento_id: int, payload: AtualizarAgendamentoSchema):
+    """
+    Atualiza os dados de um agendamento existente.
+    """
+    # Busca o agendamento pelo ID ou retorna 404 se não encontrado
+    agendamento = get_object_or_404(Agendamento, id=agendamento_id)
+
+    # Atualiza a data se estiver presente no payload
+    if payload.data:
+        agendamento.data = payload.data
+
+    # Atualiza o status se estiver presente no payload e é um valor válido
+    if payload.status and payload.status in ["PENDENTE", "CANCELADO", "CONFIRMADO"]:
+        agendamento.status = payload.status
+    elif payload.status:
+        return {"error": "Status inválido. Use 'PENDENTE', 'CANCELADO' ou 'CONFIRMADO'."}
+
+    # Salva as alterações no banco de dados
+    agendamento.save()
+
+    return {"message": "Agendamento atualizado com sucesso.", "agendamento": {
+        "id": agendamento.id,
+        "data": agendamento.data,
+        "status": agendamento.status,
+        "profissional_id": agendamento.profissional.id,
+        "paciente_id": agendamento.paciente.id,
+        "horario_id": agendamento.horario.id,
+    }}

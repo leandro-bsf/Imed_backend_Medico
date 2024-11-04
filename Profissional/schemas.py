@@ -101,7 +101,7 @@ class EnderecoEspecialistaSchemaList(BaseModel):
     bairro: str
     complemento: Optional[str] = None
 
-class PacienteSchema(Schema):
+class PacienteSchema(BaseModel):
     nome: str
     email: str
     celular: str
@@ -110,29 +110,37 @@ class PacienteSchema(Schema):
     foto: Optional[str] = None
     cpf: str
     fuso_horario: str       
-class PacienteOutSchemaList(Schema):
+class PacienteOutSchemaList(BaseModel):
     id: int
     nome: str
     email: str
     celular: str
     genero: str
     dt_nascimento: datetime
-    foto: str
+    # foto: Optional[str] 
     cpf: str
     fuso_horario: str
-
+    class Config:
+        from_attributes = True
 # Schema para atualização de dados do Paciente
-class PacienteUpdateSchema(Schema):
+
+
+class PacienteUpdateSchema(BaseModel):
     nome: Optional[str]
     email: Optional[str]
     celular: Optional[str]
     genero: Optional[str]
     dt_nascimento: Optional[datetime]
-    foto: Optional[str]
+    # foto: Optional[str]
     cpf: Optional[str]
     fuso_horario: Optional[str]
 
-class AgendamentoCreateSchema(Schema):
+class AgendamentoCreateSchema(BaseModel):
     paciente_id: int
     horario_id: int
     data: date
+
+
+class AtualizarAgendamentoSchema(BaseModel):
+    data: date = None
+    status: str = None  # Pode ser "PENDENTE", "CANCELADO" ou "CONFIRMADO"
