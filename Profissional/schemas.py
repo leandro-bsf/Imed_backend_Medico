@@ -144,3 +144,27 @@ class AgendamentoCreateSchema(BaseModel):
 class AtualizarAgendamentoSchema(BaseModel):
     data: date = None
     status: str = None  # Pode ser "PENDENTE", "CANCELADO" ou "CONFIRMADO"
+
+class ConsultaCreateSchema(BaseModel):
+    agendamento_id: int  # ID do agendamento relacionado
+    observacoes: Optional[str] = None  # Observações da consulta
+    diagnostico: Optional[str] = None  # Diagnóstico da consulta
+    prescricoes: Optional[str] = None  # Prescrições ou recomendações
+
+class ConsultaUpdateSchema(BaseModel):
+    observacoes: Optional[str] = None  # Novas observações da consulta
+    diagnostico: Optional[str] = None  # Novo diagnóstico da consulta
+    prescricoes: Optional[str] = None  # Novas prescrições ou recomendações
+
+
+class DespesaCreateSchema(BaseModel):
+    descricao: str
+    tipo: str  # Deve ser 'FIXA', 'VARIAVEL' ou 'OUTRA'
+    valor: float
+    data: str  # Formato de data, por exemplo, 'YYYY-MM-DD'
+
+class DespesaUpdateSchema(BaseModel):
+    descricao: Optional[str] = None
+    tipo: Optional[str] = None
+    valor: Optional[float] = None
+    data: Optional[str] = None

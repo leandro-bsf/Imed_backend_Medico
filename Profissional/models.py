@@ -75,6 +75,12 @@ class Paciente(models.Model):
         ('F', 'Feminino'),
         ('O', 'Outro'),
     ]
+
+    STATUS_CHOICES = [
+        ('A', 'Ativo'),
+        ('I', 'Inativo'),
+    ]
+    
     id_profissional = models.ForeignKey(Profissional, on_delete=models.CASCADE) 
     nome = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
@@ -84,6 +90,9 @@ class Paciente(models.Model):
     foto = models.ImageField(upload_to='fotos_profissionais/', null=True, blank=True)
     cpf = models.CharField(max_length=11, unique=True)
     fuso_horario = models.CharField(max_length=50)
+    qtd_consultas  = models.IntegerField(default=0)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='A')  # Adicionando o campo de status
+    dt_ultima_consulta = models.DateField() 
 
     def __str__(self):
         return self.nome
@@ -110,6 +119,23 @@ class Consulta(models.Model):
     observacoes = models.TextField(blank=True, null=True)  # Observações ou notas da consulta
     diagnostico = models.TextField(blank=True, null=True)  # Diagnóstico realizado, se aplicável
     prescricoes = models.TextField(blank=True, null=True)  # Prescrições ou recomendações
-
+    desconto = models.DecimalField(max_digits=10, decimal_places=2 ,null=True , default=0)  #    valor_consulta = models.DecimalField(max_digits=10, decimal_places=2 ,null=True)  # 
+    valor_consulta = models.DecimalField(max_digits=10, decimal_places=2 ,null=True)  # 
     def __str__(self):
         return f"Consulta de {self.agendamento.paciente} em {self.data_realizacao}"
+    
+class Despesa(models.Model):
+    TIPO_CHOICES = [
+        ('FIXA', 'Fixa'),
+        ('VARIAVEL', 'Variável'),
+        ('OUTRA', 'Outra'),
+    ]
+    
+    profissional = models.ForeignKey(Profissional, on_delete=models.CASCADE)  # Relação com o Profissional
+    descricao = models.CharField(max_length=255)  # Descrição da despesa
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)  # Tipo da despesa
+    valor = models.DecimalField(max_digits=10, decimal_places=2)  # Valor da despesa
+    data = models.DateField()  # Data da despesa
+
+    def __str__(self):
+        return f"{self.descricao} - {self.valor} em {self.data} pelo profissional {self.profissional}"

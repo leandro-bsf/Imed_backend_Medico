@@ -4,7 +4,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta ,date
 from ninja import NinjaAPI, Router 
 from rest_framework.exceptions import AuthenticationFailed
-from .models import Profissional,Paciente, HorarioEspecialista, Avaliacao,Agendamento, EnderecoEspecialista
+from .models import Profissional,Consulta ,Despesa, Paciente, HorarioEspecialista, Avaliacao,Agendamento, EnderecoEspecialista
 from django.http import Http404
 from ninja.security import HttpBearer
 from corsheaders.middleware import CorsMiddleware
@@ -12,7 +12,7 @@ from django.shortcuts import get_object_or_404
 import base64
 from django.http import JsonResponse
 from ninja.errors import HttpError
-from .schemas import RegisterSchema,AgendamentoCreateSchema, AtualizarAgendamentoSchema ,PacienteSchema,PacienteUpdateSchema ,PacienteOutSchemaList , TokenSchema,EnderecoEspecialistaSchemaList, LoginSchema,SchemaCriahorario, ProfissionalSchema, HorarioEspecialistaSchema, AvaliacaoSchema, EnderecoEspecialistaSchema,AtualizarAvaliacaoSchema
+from .schemas import RegisterSchema,DespesaCreateSchema,DespesaUpdateSchema , AgendamentoCreateSchema,ConsultaCreateSchema,ConsultaUpdateSchema, AtualizarAgendamentoSchema ,PacienteSchema,PacienteUpdateSchema ,PacienteOutSchemaList , TokenSchema,EnderecoEspecialistaSchemaList, LoginSchema,SchemaCriahorario, ProfissionalSchema, HorarioEspecialistaSchema, AvaliacaoSchema, EnderecoEspecialistaSchema,AtualizarAvaliacaoSchema
 from typing import List  # Import List
 router = Router()
 api = NinjaAPI()
@@ -216,8 +216,19 @@ def get_professional_data(request):
 def criar_horario(request, payload: SchemaCriahorario):
     user_id = request.auth
 
-    profissional = get_object_or_404(Profissional,id=user_id)
-   
+    profissional = get_object_or_404(Profissional, id=user_id)
+
+    # Verifica se já existe um horário para o mesmo dia da semana
+    horario_existente = HorarioEspecialista.objects.filter(
+        profissional=profissional,
+        dia_semana=payload.dia_semana,
+        hora_inicio=payload.hora_inicio,
+        hora_fim=payload.hora_fim
+    ).exists()
+
+    if horario_existente:
+        return {"success": False, "message": "Já existe um horário igual para este dia."}
+
     # Cria um novo horário com os dados recebidos
     novo_horario = HorarioEspecialista(
         profissional=profissional,
@@ -228,16 +239,27 @@ def criar_horario(request, payload: SchemaCriahorario):
     novo_horario.save()
     return {"success": True, "message": "Horário criado com sucesso", "id_horario": novo_horario.id}
 
+
  ##edita  horario 
+
 @router.put("/horarios/{horario_id}/", auth=jwt_auth)
 def editar_horario(request, horario_id: int, payload: SchemaCriahorario):
-    
     user_id = request.auth
-    profissional = get_object_or_404(Profissional,id=user_id)
+    profissional = get_object_or_404(Profissional, id=user_id)
     horario = get_object_or_404(HorarioEspecialista, id=horario_id, profissional=profissional)
 
-    # Atualiza os campos do horário com os dados recebidos
+    # Verifica se já existe um horário igual para o mesmo dia da semana
+    horario_existente = HorarioEspecialista.objects.filter(
+        profissional=profissional,
+        dia_semana=payload.dia_semana,
+        hora_inicio=payload.hora_inicio,
+        hora_fim=payload.hora_fim
+    ).exclude(id=horario.id).exists()
 
+    if horario_existente:
+        return {"success": False, "message": "Já existe um horário igual para este dia."}
+
+    # Atualiza os campos do horário com os dados recebidos
     horario.dia_semana = payload.dia_semana
     horario.hora_inicio = payload.hora_inicio
     horario.hora_fim = payload.hora_fim
@@ -562,7 +584,7 @@ def listar_agendamentos_disponiveis(request):
         hora_fim = horario.hora_fim
        
         # Itera sobre as próximas duas semanas para verificar disponibilidade
-        for i in range(1, 15):  # 14 dias
+        for i in range(1, 30):  # 30 dias
             data_verificacao = data_atual + timedelta(days=i)
             dia_da_semana = DIA_SEMANA_MAPA[data_verificacao.weekday()] 
             print("dia semana ", dia_da_semana)
@@ -634,7 +656,29 @@ def criar_agendamento(request, agendamento_data: AgendamentoCreateSchema):
         return JsonResponse({"message": "Horário não encontrado."}, status=404)
     except Exception as e:
         return JsonResponse({"message": f"Erro ao criar agendamento: {str(e)}"}, status=500)
-    
+
+
+  ## retorna os agendamento do profissional   
+@router.get("/agendamentos/profissional/", auth=jwt_auth)
+def listar_agendamentos_profissional(request):
+    """
+    Retorna os agendamentos do profissional autenticado.
+    """
+    user_id = request.auth  # ID do profissional autenticado
+
+    # Filtra os agendamentos do profissional autenticado
+    agendamentos = Agendamento.objects.filter(profissional_id=user_id).values(
+        "id", 
+        "paciente__nome", 
+        "data", 
+        "horario__hora_inicio", 
+        "horario__hora_fim", 
+        "status"
+    )
+
+    # Mapeia os dados necessários e retorna como JSON
+    return JsonResponse({"agendamentos": list(agendamentos)}, status=200)
+
 
 @router.put("/agendamentos/{agendamento_id}", auth=jwt_auth)
 def atualizar_agendamento(request, agendamento_id: int, payload: AtualizarAgendamentoSchema):
@@ -665,3 +709,188 @@ def atualizar_agendamento(request, agendamento_id: int, payload: AtualizarAgenda
         "paciente_id": agendamento.paciente.id,
         "horario_id": agendamento.horario.id,
     }}
+
+### delete agendamento
+@router.delete("/agendamentos/{agendamento_id}/", auth=jwt_auth)
+def deletar_agendamento(request, agendamento_id: int):
+    """
+    Deleta um agendamento específico do profissional autenticado.
+    """
+    try:
+        user_id = request.auth  # Obtém o ID do profissional autenticado
+
+        # Tenta obter o agendamento com o ID fornecido que pertence ao profissional autenticado
+        agendamento = Agendamento.objects.get(id=agendamento_id, profissional_id=user_id)
+
+        # Exclui o agendamento
+        agendamento.delete()
+        
+        return JsonResponse({"message": "Agendamento deletado com sucesso!"}, status=200)
+
+    except Agendamento.DoesNotExist:
+        return JsonResponse({"message": "Agendamento não encontrado."}, status=404)
+    except Exception as e:
+        return JsonResponse({"message": f"Erro ao deletar agendamento: {str(e)}"}, status=500)
+
+
+@router.post("/consultas/", auth=jwt_auth)
+def criar_consulta(request, consulta_data: ConsultaCreateSchema):
+    try:
+        user_id = request.auth  # ID do profissional autenticado
+        
+        # Verifica se o agendamento existe e pertence ao profissional autenticado
+        agendamento = Agendamento.objects.get(id=consulta_data.agendamento_id, profissional_id=user_id)
+
+        # Cria a nova consulta vinculada ao agendamento
+        nova_consulta = Consulta.objects.create(
+            agendamento=agendamento,
+            observacoes=consulta_data.observacoes,
+            diagnostico=consulta_data.diagnostico,
+            prescricoes=consulta_data.prescricoes
+        )
+
+        return JsonResponse({"message": "Consulta criada com sucesso!", "consulta_id": nova_consulta.id}, status=201)
+
+    except Agendamento.DoesNotExist:
+        return JsonResponse({"message": "Agendamento não encontrado ou não pertence ao profissional."}, status=404)
+    
+
+@router.get("/consultas/", auth=jwt_auth)
+def listar_consultas(request):
+    user_id = request.auth  # ID do profissional autenticado
+    
+    # Filtra consultas apenas para os agendamentos do profissional
+    consultas = Consulta.objects.filter(agendamento__profissional_id=user_id)
+    consultas_data = [
+        {
+            "consulta_id": consulta.id,
+            "data_realizacao": consulta.data_realizacao,
+            "observacoes": consulta.observacoes,
+            "diagnostico": consulta.diagnostico,
+            "prescricoes": consulta.prescricoes
+        }
+        for consulta in consultas
+    ]
+
+    return JsonResponse({"consultas": consultas_data}, status=200)
+
+
+@router.get("/consultas/{consulta_id}/", auth=jwt_auth)
+def obter_consulta(request, consulta_id: int):
+    try:
+        user_id = request.auth  # ID do profissional autenticado
+
+        # Busca a consulta que pertence ao profissional
+        consulta = Consulta.objects.get(id=consulta_id, agendamento__profissional_id=user_id)
+
+        consulta_data = {
+            "consulta_id": consulta.id,
+            "data_realizacao": consulta.data_realizacao,
+            "observacoes": consulta.observacoes,
+            "diagnostico": consulta.diagnostico,
+            "prescricoes": consulta.prescricoes
+        }
+
+        return JsonResponse({"consulta": consulta_data}, status=200)
+
+    except Consulta.DoesNotExist:
+        return JsonResponse({"message": "Consulta não encontrada ou não pertence ao profissional."}, status=404)
+    
+@router.put("/consultas/{consulta_id}/", auth=jwt_auth)
+def atualizar_consulta(request, consulta_id: int, consulta_data: ConsultaUpdateSchema):
+    try:
+        user_id = request.auth  # ID do profissional autenticado
+
+        # Busca a consulta que pertence ao profissional
+        consulta = Consulta.objects.get(id=consulta_id, agendamento__profissional_id=user_id)
+
+        # Atualiza os dados da consulta
+        consulta.observacoes = consulta_data.observacoes
+        consulta.diagnostico = consulta_data.diagnostico
+        consulta.prescricoes = consulta_data.prescricoes
+        consulta.save()
+
+        return JsonResponse({"message": "Consulta atualizada com sucesso!"}, status=200)
+
+    except Consulta.DoesNotExist:
+        return JsonResponse({"message": "Consulta não encontrada ou não pertence ao profissional."}, status=404)
+
+
+@router.delete("/consultas/{consulta_id}/", auth=jwt_auth)
+def deletar_consulta(request, consulta_id: int):
+    try:
+        user_id = request.auth  # ID do profissional autenticado
+
+        # Busca a consulta que pertence ao profissional
+        consulta = Consulta.objects.get(id=consulta_id, agendamento__profissional_id=user_id)
+        consulta.delete()
+
+        return JsonResponse({"message": "Consulta deletada com sucesso!"}, status=200)
+
+    except Consulta.DoesNotExist:
+        return JsonResponse({"message": "Consulta não encontrada ou não pertence ao profissional."}, status=404)
+
+
+@router.post("/despesas/", auth=jwt_auth)
+def criar_despesa(request, payload: DespesaCreateSchema):
+    user_id = request.auth
+    profissional = get_object_or_404(Profissional, id=user_id)
+
+    # Cria uma nova despesa com os dados recebidos
+    nova_despesa = Despesa(
+        profissional=profissional,
+        descricao=payload.descricao,
+        tipo=payload.tipo,
+        valor=payload.valor,
+        data=payload.data
+    )
+    nova_despesa.save()
+    return {"success": True, "message": "Despesa criada com sucesso", "id_despesa": nova_despesa.id}
+
+## lista despesas
+@router.get("/despesas/", auth=jwt_auth)
+def listar_despesas(request):
+    user_id = request.auth
+    profissional = get_object_or_404(Profissional, id=user_id)
+
+    # Obtém todas as despesas do profissional
+    despesas = Despesa.objects.filter(profissional=profissional)
+    despesas_data = [
+        {
+            "id": despesa.id,
+            "descricao": despesa.descricao,
+            "tipo": despesa.tipo,
+            "valor": despesa.valor,
+            "data": despesa.data
+        }
+        for despesa in despesas
+    ]
+    return {"despesas": despesas_data}
+
+## edita despesa
+@router.put("/despesas/{despesa_id}/", auth=jwt_auth)
+def editar_despesa(request, despesa_id: int, payload: DespesaUpdateSchema):
+    user_id = request.auth
+    despesa = get_object_or_404(Despesa, id=despesa_id, profissional_id=user_id)
+
+    # Atualiza os campos da despesa com os dados recebidos
+    if payload.descricao is not None:
+        despesa.descricao = payload.descricao
+    if payload.tipo is not None:
+        despesa.tipo = payload.tipo
+    if payload.valor is not None:
+        despesa.valor = payload.valor
+    if payload.data is not None:
+        despesa.data = payload.data
+
+    despesa.save()
+    return {"success": True, "message": "Despesa atualizada com sucesso"}
+
+## deleta despesa
+@router.delete("/despesas/{despesa_id}/", auth=jwt_auth)
+def deletar_despesa(request, despesa_id: int):
+    user_id = request.auth
+    despesa = get_object_or_404(Despesa, id=despesa_id, profissional_id=user_id)
+
+    despesa.delete()
+    return {"success": True, "message": "Despesa deletada com sucesso"}
