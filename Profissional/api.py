@@ -613,6 +613,65 @@ def listar_agendamentos_disponiveis(request):
                     })
 
     return {"horarios_disponiveis": horarios_disponiveis}
+#####Novo endpoint
+
+@router.get("/agendamentos/horarios/", auth=jwt_auth)
+def listar_horarios_e_agendamentos(request):
+    """
+    Retorna os horários disponíveis para o profissional autenticado.
+    Caso tenha um agendamento, retorna o horário, id do agendamento e nome do paciente.
+    """
+    user_id = request.auth  # ID do profissional autenticado
+
+    # Obter os horários do profissional autenticado
+    horarios_profissional = HorarioEspecialista.objects.filter(profissional_id=user_id)
+    
+    if not horarios_profissional.exists():
+        return {"message": "Nenhum horário encontrado para este profissional."}
+
+    horarios_disponiveis = []
+    data_atual = timezone.now().date()
+
+    # Verificar horários disponíveis para os próximos 30 dias
+    for horario in horarios_profissional:
+        dia_semana = horario.dia_semana
+        hora_inicio = horario.hora_inicio
+        hora_fim = horario.hora_fim
+
+        for i in range(1, 30):  # Verifica para os próximos 30 dias
+            data_verificacao = data_atual + timedelta(days=i)
+            dia_da_semana = DIA_SEMANA_MAPA[data_verificacao.weekday()]
+
+            # Verifica se o dia da semana corresponde ao dia cadastrado
+            if dia_da_semana == dia_semana:
+                # Busca agendamentos para o horário específico
+                agendamento = Agendamento.objects.filter(
+                    profissional_id=user_id,
+                    data=data_verificacao,
+                    horario_id=horario.id,
+                    status="PENDENTE"
+                ).values("id", "paciente__nome", "horario__hora_inicio", "horario__hora_fim").first()
+
+                if agendamento:
+                    # Caso exista agendamento, adiciona com os dados do paciente
+                    horarios_disponiveis.append({
+                        "data": data_verificacao,
+                        "hora_inicio": hora_inicio,
+                        "hora_fim": hora_fim,
+                        "id_agendamento": agendamento["id"],
+                        "nome_paciente": agendamento["paciente__nome"]
+                    })
+                else:
+                    # Caso não exista, apenas retorna o horário disponível
+                    horarios_disponiveis.append({
+                        "data": data_verificacao,
+                        "hora_inicio": hora_inicio,
+                        "hora_fim": hora_fim
+                    })
+
+    return JsonResponse({"horarios_disponiveis": horarios_disponiveis}, status=200)
+
+
 
 @router.post("/agendamentos/", auth=jwt_auth)
 def criar_agendamento(request, agendamento_data: AgendamentoCreateSchema):
@@ -667,9 +726,12 @@ def listar_agendamentos_profissional(request):
     user_id = request.auth  # ID do profissional autenticado
 
     # Filtra os agendamentos do profissional autenticado
+   
     agendamentos = Agendamento.objects.filter(profissional_id=user_id).values(
+    
         "id", 
         "paciente__nome", 
+        "horario",  ##retornar aqui o idhoraario
         "data", 
         "horario__hora_inicio", 
         "horario__hora_fim", 
@@ -767,7 +829,8 @@ def listar_consultas(request):
             "data_realizacao": consulta.data_realizacao,
             "observacoes": consulta.observacoes,
             "diagnostico": consulta.diagnostico,
-            "prescricoes": consulta.prescricoes
+            "prescricoes": consulta.prescricoes,
+            "valor_final_consulta": consulta.valor_final
         }
         for consulta in consultas
     ]

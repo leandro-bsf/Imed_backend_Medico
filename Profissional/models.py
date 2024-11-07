@@ -1,5 +1,5 @@
 from django.db import models
-
+from django.core.exceptions import ValidationError
 class Profissional(models.Model):
     nome = models.CharField(max_length=255)
     telefone = models.CharField(max_length=15)
@@ -121,9 +121,37 @@ class Consulta(models.Model):
     prescricoes = models.TextField(blank=True, null=True)  # Prescrições ou recomendações
     desconto = models.DecimalField(max_digits=10, decimal_places=2 ,null=True , default=0)  #    valor_consulta = models.DecimalField(max_digits=10, decimal_places=2 ,null=True)  # 
     valor_consulta = models.DecimalField(max_digits=10, decimal_places=2 ,null=True)  # 
+    valor_final = models.DecimalField(max_digits=10, decimal_places=2 ,null=True)  # 
     def __str__(self):
         return f"Consulta de {self.agendamento.paciente} em {self.data_realizacao}"
     
+    def obter_valor_consulta_profissional(self):
+        """Obtém o valor da consulta a partir do profissional associado ao agendamento."""
+        if self.agendamento and self.agendamento.profissional:
+            return self.agendamento.profissional.valor_consulta
+        return None
+
+    def calcular_valor_final(self):
+        """Calcula o valor final subtraindo o desconto do valor da consulta."""
+        if self.valor_consulta is not None and self.desconto is not None:
+            return self.valor_consulta - self.desconto
+        return None
+
+    def save(self, *args, **kwargs):
+        # Se `valor_consulta` não estiver definido, tenta obtê-lo do profissional
+        if self.valor_consulta is None:
+            self.valor_consulta = self.obter_valor_consulta_profissional()
+
+        # Calcula o valor final e o atribui ao campo `valor_final`
+        self.valor_final = self.calcular_valor_final()
+
+        # Verifica se o valor final é negativo
+        if self.valor_final is not None and self.valor_final < 0:
+            raise ValidationError("O valor final não pode ser negativo.")
+
+        super().save(*args, **kwargs)
+
+        
 class Despesa(models.Model):
     TIPO_CHOICES = [
         ('FIXA', 'Fixa'),
