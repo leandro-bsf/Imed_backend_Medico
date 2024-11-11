@@ -119,6 +119,9 @@ class PacienteOutSchemaList(BaseModel):
     dt_nascimento: datetime
     # foto: Optional[str] 
     cpf: str
+    qtd_consultas: int
+    dt_ultima_consulta: Optional[date] 
+    status: str
     fuso_horario: str
     class Config:
         from_attributes = True
@@ -131,6 +134,7 @@ class PacienteUpdateSchema(BaseModel):
     celular: Optional[str]
     genero: Optional[str]
     dt_nascimento: Optional[datetime]
+    status: str
     # foto: Optional[str]
     cpf: Optional[str]
     fuso_horario: Optional[str]
@@ -154,6 +158,7 @@ class ConsultaCreateSchema(BaseModel):
 class ConsultaUpdateSchema(BaseModel):
     observacoes: Optional[str] = None  # Novas observações da consulta
     diagnostico: Optional[str] = None  # Novo diagnóstico da consulta
+    desconto: float 
     prescricoes: Optional[str] = None  # Novas prescrições ou recomendações
 
 

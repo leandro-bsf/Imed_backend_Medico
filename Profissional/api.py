@@ -592,7 +592,7 @@ def listar_agendamentos_disponiveis(request):
             # Verifica se o dia da semana corresponde ao que está cadastrado
             if dia_da_semana == dia_semana:
                 # Verifica se já existe agendamento nesse dia e horário
-                 print("entrou")
+                
                  agendamento_existente = Agendamento.objects.filter(
                     profissional_id=user_id,
                     data=data_verificacao,
@@ -608,6 +608,7 @@ def listar_agendamentos_disponiveis(request):
                  if not agendamento_existente:
                     horarios_disponiveis.append({
                         "data": data_verificacao,
+                        "id_horario": horario.id,
                         "hora_inicio": hora_inicio,
                         "hora_fim": hora_fim
                     })
@@ -655,6 +656,7 @@ def listar_horarios_e_agendamentos(request):
                 if agendamento:
                     # Caso exista agendamento, adiciona com os dados do paciente
                     horarios_disponiveis.append({
+                        "id_horario": horario.id,
                         "data": data_verificacao,
                         "hora_inicio": hora_inicio,
                         "hora_fim": hora_fim,
@@ -664,6 +666,7 @@ def listar_horarios_e_agendamentos(request):
                 else:
                     # Caso não exista, apenas retorna o horário disponível
                     horarios_disponiveis.append({
+                        "id_horario": horario.id,
                         "data": data_verificacao,
                         "hora_inicio": hora_inicio,
                         "hora_fim": hora_fim
@@ -810,6 +813,11 @@ def criar_consulta(request, consulta_data: ConsultaCreateSchema):
             diagnostico=consulta_data.diagnostico,
             prescricoes=consulta_data.prescricoes
         )
+          # Atualiza o paciente relacionado
+        paciente = agendamento.paciente  # Supondo que o campo `paciente` exista no modelo Agendamento
+        paciente.qtd_consultas += 1
+        paciente.dt_ultima_consulta = timezone.now().date()
+        paciente.save()
 
         return JsonResponse({"message": "Consulta criada com sucesso!", "consulta_id": nova_consulta.id}, status=201)
 
@@ -830,6 +838,8 @@ def listar_consultas(request):
             "observacoes": consulta.observacoes,
             "diagnostico": consulta.diagnostico,
             "prescricoes": consulta.prescricoes,
+            "valor_consulta": consulta.valor_consulta,
+            "desconto":  consulta.desconto,
             "valor_final_consulta": consulta.valor_final
         }
         for consulta in consultas
@@ -851,7 +861,9 @@ def obter_consulta(request, consulta_id: int):
             "data_realizacao": consulta.data_realizacao,
             "observacoes": consulta.observacoes,
             "diagnostico": consulta.diagnostico,
-            "prescricoes": consulta.prescricoes
+            "prescricoes": consulta.prescricoes, 
+           "valor_consulta": consulta.valor_consulta,
+            "desconto": consulta.desconto
         }
 
         return JsonResponse({"consulta": consulta_data}, status=200)
@@ -871,6 +883,7 @@ def atualizar_consulta(request, consulta_id: int, consulta_data: ConsultaUpdateS
         consulta.observacoes = consulta_data.observacoes
         consulta.diagnostico = consulta_data.diagnostico
         consulta.prescricoes = consulta_data.prescricoes
+        consulta.desconto =  consulta_data.desconto
         consulta.save()
 
         return JsonResponse({"message": "Consulta atualizada com sucesso!"}, status=200)

@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+from decimal import Decimal
 class Profissional(models.Model):
     nome = models.CharField(max_length=255)
     telefone = models.CharField(max_length=15)
@@ -92,7 +93,7 @@ class Paciente(models.Model):
     fuso_horario = models.CharField(max_length=50)
     qtd_consultas  = models.IntegerField(default=0)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='A')  # Adicionando o campo de status
-    dt_ultima_consulta = models.DateField() 
+    dt_ultima_consulta = models.DateField(null=True, blank=True) 
 
     def __str__(self):
         return self.nome
@@ -134,7 +135,7 @@ class Consulta(models.Model):
     def calcular_valor_final(self):
         """Calcula o valor final subtraindo o desconto do valor da consulta."""
         if self.valor_consulta is not None and self.desconto is not None:
-            return self.valor_consulta - self.desconto
+            return self.valor_consulta - Decimal(self.desconto)
         return None
 
     def save(self, *args, **kwargs):
