@@ -1,6 +1,7 @@
 import bcrypt
 import jwt
 from django.utils import timezone
+
 from datetime import datetime, timedelta ,date
 from ninja import NinjaAPI, Router 
 from rest_framework.exceptions import AuthenticationFailed
@@ -484,7 +485,7 @@ def adicionar_paciente(request, paciente: PacienteSchema):
 
     # Buscando o profissional no banco de dados (assumindo que o user_id é o id do Profissional)
     profissional = get_object_or_404(Profissional, id=user_id)
-
+    
     # Criando o novo paciente
     novo_paciente = Paciente.objects.create(
         nome=paciente.nome,
@@ -549,12 +550,12 @@ def atualizar_paciente(request, paciente_id: int, dados: PacienteUpdateSchema):
 # Mapeamento dos dias da semana
 DIA_SEMANA_MAPA = {
     0: 'Segunda',
-    1: 'terca',
-    2: 'quarta',
-    3: 'quinta',
-    4: 'sexta',
-    5: 'sabado',
-    6: 'domingo'
+    1: 'Terça',
+    2: 'Quarta',
+    3: 'Quinta',
+    4: 'Sexta',
+    5: 'Sábado',
+    6: 'Domingo'
 }
 
 
@@ -587,8 +588,7 @@ def listar_agendamentos_disponiveis(request):
         for i in range(1, 30):  # 30 dias
             data_verificacao = data_atual + timedelta(days=i)
             dia_da_semana = DIA_SEMANA_MAPA[data_verificacao.weekday()] 
-            print("dia semana ", dia_da_semana)
-           
+          
             # Verifica se o dia da semana corresponde ao que está cadastrado
             if dia_da_semana == dia_semana:
                 # Verifica se já existe agendamento nesse dia e horário
@@ -615,12 +615,11 @@ def listar_agendamentos_disponiveis(request):
 
     return {"horarios_disponiveis": horarios_disponiveis}
 #####Novo endpoint
-
 @router.get("/agendamentos/horarios/", auth=jwt_auth)
 def listar_horarios_e_agendamentos(request):
     """
-    Retorna os horários disponíveis para o profissional autenticado.
-    Caso tenha um agendamento, retorna o horário, id do agendamento e nome do paciente.
+    Retorna todos os horários e agendamentos (passados, presentes e futuros) para o profissional autenticado.
+    Caso tenha um agendamento, retorna o horário, id do agendamento, nome do paciente e tipo de seção.
     """
     user_id = request.auth  # ID do profissional autenticado
 
@@ -628,53 +627,53 @@ def listar_horarios_e_agendamentos(request):
     horarios_profissional = HorarioEspecialista.objects.filter(profissional_id=user_id)
     
     if not horarios_profissional.exists():
-        return {"message": "Nenhum horário encontrado para este profissional."}
+        return JsonResponse({"message": "Nenhum horário encontrado para este profissional."}, status=404)
 
     horarios_disponiveis = []
     data_atual = timezone.now().date()
 
-    # Verificar horários disponíveis para os próximos 30 dias
+    # Loop por cada horário cadastrado do profissional
     for horario in horarios_profissional:
         dia_semana = horario.dia_semana
         hora_inicio = horario.hora_inicio
         hora_fim = horario.hora_fim
 
-        for i in range(1, 30):  # Verifica para os próximos 30 dias
+        # Busca todos os agendamentos para o horário e dia da semana específico
+        agendamentos = Agendamento.objects.filter(
+            profissional_id=user_id,
+            horario_id=horario.id,
+            status="PENDENTE"
+        ).values("id", "paciente__nome", "horario__hora_inicio", "horario__hora_fim", "data", "tipo_secao")
+
+        # Processa os agendamentos encontrados
+        for agendamento in agendamentos:
+            horarios_disponiveis.append({
+                "id_horario": horario.id,
+                "data": agendamento["data"],
+                "hora_inicio": agendamento["horario__hora_inicio"],
+                "hora_fim": agendamento["horario__hora_fim"],
+                "id_agendamento": agendamento["id"],
+                "nome_paciente": agendamento["paciente__nome"],
+                "tipo_secao": agendamento["tipo_secao"],  # Adiciona o campo tipo_secao
+            })
+
+        # Adiciona horários sem agendamento para o dia da semana cadastrado
+        for i in range(-365, 366):  # Considera um ano de datas passadas e futuras
             data_verificacao = data_atual + timedelta(days=i)
             dia_da_semana = DIA_SEMANA_MAPA[data_verificacao.weekday()]
 
-            # Verifica se o dia da semana corresponde ao dia cadastrado
-            if dia_da_semana == dia_semana:
-                # Busca agendamentos para o horário específico
-                agendamento = Agendamento.objects.filter(
-                    profissional_id=user_id,
-                    data=data_verificacao,
-                    horario_id=horario.id,
-                    status="PENDENTE"
-                ).values("id", "paciente__nome", "horario__hora_inicio", "horario__hora_fim").first()
-
-                if agendamento:
-                    # Caso exista agendamento, adiciona com os dados do paciente
-                    horarios_disponiveis.append({
-                        "id_horario": horario.id,
-                        "data": data_verificacao,
-                        "hora_inicio": hora_inicio,
-                        "hora_fim": hora_fim,
-                        "id_agendamento": agendamento["id"],
-                        "nome_paciente": agendamento["paciente__nome"]
-                    })
-                else:
-                    # Caso não exista, apenas retorna o horário disponível
-                    horarios_disponiveis.append({
-                        "id_horario": horario.id,
-                        "data": data_verificacao,
-                        "hora_inicio": hora_inicio,
-                        "hora_fim": hora_fim
-                    })
+            # Adiciona o horário disponível caso seja o mesmo dia da semana e não tenha agendamento
+            if dia_da_semana == dia_semana and not any(
+                agendamento["data"] == data_verificacao for agendamento in agendamentos
+            ):
+                horarios_disponiveis.append({
+                    "id_horario": horario.id,
+                    "data": data_verificacao,
+                    "hora_inicio": hora_inicio,
+                    "hora_fim": hora_fim
+                })
 
     return JsonResponse({"horarios_disponiveis": horarios_disponiveis}, status=200)
-
-
 
 @router.post("/agendamentos/", auth=jwt_auth)
 def criar_agendamento(request, agendamento_data: AgendamentoCreateSchema):
@@ -686,6 +685,24 @@ def criar_agendamento(request, agendamento_data: AgendamentoCreateSchema):
         # Obtenha o paciente e o horário usando os IDs do schema
         paciente = Paciente.objects.get(id=agendamento_data.paciente_id)
         horario = HorarioEspecialista.objects.get(id=agendamento_data.horario_id)
+
+        # Mapeamento dos valores numéricos dos dias da semana para os dias em português
+        dias_semana_map = {
+            0: 'Segunda', 1: 'Terça', 2: 'Quarta', 3: 'Quinta',
+            4: 'Sexta', 5: 'Sábado', 6: 'Domingo'
+        }
+
+        # Verifique se o dia da semana do horário corresponde ao dia da semana da data
+        if isinstance(agendamento_data.data, str):
+            data_agendamento = datetime.strptime(agendamento_data.data, "%Y-%m-%d").date()
+        elif isinstance(agendamento_data.data, date):
+            data_agendamento = agendamento_data.data
+        else:
+            return JsonResponse({"message": "Formato de data inválido."}, status=400)
+
+        dia_semana_agendamento = data_agendamento.weekday()  # 0 = segunda-feira, 6 = domingo
+        if dias_semana_map[dia_semana_agendamento] != horario.dia_semana:
+            return JsonResponse({"message": "O dia da semana da data não corresponde ao dia do horário."}, status=400)
 
         # Verifique se já existe um agendamento pendente para o horário
         agendamento_existente = Agendamento.objects.filter(
@@ -753,10 +770,7 @@ def atualizar_agendamento(request, agendamento_id: int, payload: AtualizarAgenda
     # Busca o agendamento pelo ID ou retorna 404 se não encontrado
     agendamento = get_object_or_404(Agendamento, id=agendamento_id)
 
-    # Atualiza a data se estiver presente no payload
-    if payload.data:
-        agendamento.data = payload.data
-
+   
     # Atualiza o status se estiver presente no payload e é um valor válido
     if payload.status and payload.status in ["PENDENTE", "CANCELADO", "CONFIRMADO"]:
         agendamento.status = payload.status
@@ -801,20 +815,33 @@ def deletar_agendamento(request, agendamento_id: int):
 @router.post("/consultas/", auth=jwt_auth)
 def criar_consulta(request, consulta_data: ConsultaCreateSchema):
     try:
-        user_id = request.auth  # ID do profissional autenticado
-        
+        # ID do profissional autenticado
+        user_id = request.auth  
+
         # Verifica se o agendamento existe e pertence ao profissional autenticado
         agendamento = Agendamento.objects.get(id=consulta_data.agendamento_id, profissional_id=user_id)
 
-        # Cria a nova consulta vinculada ao agendamento
+        # Obtém os dados do paciente e do horário associados ao agendamento
+        paciente = agendamento.paciente  # Paciente já está relacionado ao Agendamento
+        horario = agendamento.horario  # Horário já está relacionado ao Agendamento
+        profissional = agendamento.profissional
+        # Cria a nova consulta vinculada ao agendamento e preenche os campos automaticamente
         nova_consulta = Consulta.objects.create(
             agendamento=agendamento,
             observacoes=consulta_data.observacoes,
             diagnostico=consulta_data.diagnostico,
-            prescricoes=consulta_data.prescricoes
+            prescricoes=consulta_data.prescricoes,
+            valor_consulta=profissional.valor_consulta,  # Valor da consulta, se necessário
+            valor_final = profissional.valor_consulta,
+            profissional=agendamento.profissional,  # Profissional vem do agendamento
+            paciente=paciente,  # Paciente vem do agendamento
+            data=agendamento.data,  # Data da consulta é a mesma do agendamento
+            hora=horario.hora_inicio,  # Horário da consulta é o hora_inicio do agendamento
+            nome_paciente=paciente.nome,  # Nome do paciente
+            telefone_paciente=paciente.celular  # Telefone do paciente
         )
-          # Atualiza o paciente relacionado
-        paciente = agendamento.paciente  # Supondo que o campo `paciente` exista no modelo Agendamento
+
+        # Atualiza as informações do paciente
         paciente.qtd_consultas += 1
         paciente.dt_ultima_consulta = timezone.now().date()
         paciente.save()
@@ -823,7 +850,13 @@ def criar_consulta(request, consulta_data: ConsultaCreateSchema):
 
     except Agendamento.DoesNotExist:
         return JsonResponse({"message": "Agendamento não encontrado ou não pertence ao profissional."}, status=404)
-    
+    except HorarioEspecialista.DoesNotExist:
+        return JsonResponse({"message": "Horário do agendamento não encontrado."}, status=404)
+    except Paciente.DoesNotExist:
+        return JsonResponse({"message": "Paciente não encontrado."}, status=404)
+    except Exception as e:
+        return JsonResponse({"message": f"Erro ao criar consulta: {str(e)}"}, status=500)
+
 
 @router.get("/consultas/", auth=jwt_auth)
 def listar_consultas(request):
@@ -831,15 +864,20 @@ def listar_consultas(request):
     
     # Filtra consultas apenas para os agendamentos do profissional
     consultas = Consulta.objects.filter(agendamento__profissional_id=user_id)
+    
     consultas_data = [
         {
             "consulta_id": consulta.id,
+            "paciente_id": consulta.paciente.id,  # Aqui pegamos o ID do paciente
+            "nome_paciente": consulta.paciente.nome,  # Aqui pegamos o nome do paciente
+            "telefone_paciente": consulta.paciente.celular,  # Aqui pegamos o telefone do paciente
+            "horario_consulta": consulta.hora,
             "data_realizacao": consulta.data_realizacao,
             "observacoes": consulta.observacoes,
             "diagnostico": consulta.diagnostico,
             "prescricoes": consulta.prescricoes,
             "valor_consulta": consulta.valor_consulta,
-            "desconto":  consulta.desconto,
+            "desconto": consulta.desconto,
             "valor_final_consulta": consulta.valor_final
         }
         for consulta in consultas

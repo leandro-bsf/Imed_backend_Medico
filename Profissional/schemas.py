@@ -43,7 +43,7 @@ class ProfissionalSchema(Schema):
     nome: Optional[str]  # Campo opcional
     telefone:Optional[str]  # Campo opcional, com limite de tamanho
     email: Optional[str]   # Campo opcional, deve ser um email válido
-    senha: Optional[str] 
+    # senha: Optional[str] 
     dt_nascimento: Optional[datetime]  # Campo opcional
     genero: Optional[str]  # Campo opcional
     id_especialidade: Optional[int]  # Campo opcional
@@ -146,21 +146,26 @@ class AgendamentoCreateSchema(BaseModel):
 
 
 class AtualizarAgendamentoSchema(BaseModel):
-    data: date = None
+ 
     status: str = None  # Pode ser "PENDENTE", "CANCELADO" ou "CONFIRMADO"
 
 class ConsultaCreateSchema(BaseModel):
-    agendamento_id: int  # ID do agendamento relacionado
-    observacoes: Optional[str] = None  # Observações da consulta
-    diagnostico: Optional[str] = None  # Diagnóstico da consulta
-    prescricoes: Optional[str] = None  # Prescrições ou recomendações
+    agendamento_id: int
+    observacoes: Optional[str] = None
+    diagnostico: Optional[str] = None
+    prescricoes: Optional[str] = None
+  
+
+    class Config:
+        orm_mode = True
+
 
 class ConsultaUpdateSchema(BaseModel):
     observacoes: Optional[str] = None  # Novas observações da consulta
     diagnostico: Optional[str] = None  # Novo diagnóstico da consulta
     desconto: float 
     prescricoes: Optional[str] = None  # Novas prescrições ou recomendações
-
+ 
 
 class DespesaCreateSchema(BaseModel):
     descricao: str

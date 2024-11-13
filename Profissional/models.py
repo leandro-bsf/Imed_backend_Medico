@@ -109,7 +109,14 @@ class Agendamento(models.Model):
         choices=[("PENDENTE", "Pendente"), ("CANCELADO", "Cancelado"), ("CONFIRMADO", "Confirmado")],
         default="PENDENTE"
     )
+    Tipo_secao = [
+        ('ONLINE', 'Online'),
+        ('PRESENCIAL', 'Presencial'),
+       ('INDISPONIVEL', 'Indiponivel')
+    ]
+    tipo_secao  = models.CharField(choices=Tipo_secao, max_length=20, default='ONLINE')  # Adicione max_length aqui
     
+
     def __str__(self):
         return f"Agendamento de {self.paciente} com {self.profissional} em {self.data} às {self.horario.hora}"
     
@@ -123,14 +130,16 @@ class Consulta(models.Model):
     desconto = models.DecimalField(max_digits=10, decimal_places=2 ,null=True , default=0)  #    valor_consulta = models.DecimalField(max_digits=10, decimal_places=2 ,null=True)  # 
     valor_consulta = models.DecimalField(max_digits=10, decimal_places=2 ,null=True)  # 
     valor_final = models.DecimalField(max_digits=10, decimal_places=2 ,null=True)  # 
+    profissional = models.ForeignKey(Profissional, on_delete=models.CASCADE)
+    paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE)
+    data = models.DateTimeField(blank=True, null=True)
+    hora = models.TimeField(blank=True, null=True)
+    nome_paciente = models.CharField(blank=True, null=True)
+    telefone_paciente = models.CharField(blank=True, null=True)
     def __str__(self):
         return f"Consulta de {self.agendamento.paciente} em {self.data_realizacao}"
     
-    def obter_valor_consulta_profissional(self):
-        """Obtém o valor da consulta a partir do profissional associado ao agendamento."""
-        if self.agendamento and self.agendamento.profissional:
-            return self.agendamento.profissional.valor_consulta
-        return None
+   
 
     def calcular_valor_final(self):
         """Calcula o valor final subtraindo o desconto do valor da consulta."""
