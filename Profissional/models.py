@@ -123,7 +123,7 @@ class Agendamento(models.Model):
 
 class Consulta(models.Model):
     agendamento = models.OneToOneField(Agendamento, on_delete=models.CASCADE)  # Ligação direta com o Agendamento
-    data_realizacao = models.DateTimeField(auto_now_add=True)  # Data e hora da consulta
+    data_realizacao = models.DateField(auto_now_add=True)  # Data e hora da consulta
     observacoes = models.TextField(blank=True, null=True)  # Observações ou notas da consulta
     diagnostico = models.TextField(blank=True, null=True)  # Diagnóstico realizado, se aplicável
     prescricoes = models.TextField(blank=True, null=True)  # Prescrições ou recomendações
@@ -135,6 +135,7 @@ class Consulta(models.Model):
     data = models.DateTimeField(blank=True, null=True)
     hora = models.TimeField(blank=True, null=True)
     nome_paciente = models.CharField(blank=True, null=True)
+    link_video_chamada = models.CharField(blank=True, null=True)
     telefone_paciente = models.CharField(blank=True, null=True)
     def __str__(self):
         return f"Consulta de {self.agendamento.paciente} em {self.data_realizacao}"

@@ -1,6 +1,7 @@
 import bcrypt
 import jwt
 from django.utils import timezone
+from django.db.models import Q
 
 from datetime import datetime, timedelta ,date
 from ninja import NinjaAPI, Router 
@@ -501,6 +502,31 @@ def adicionar_paciente(request, paciente: PacienteSchema):
 
     return {"msg": "Paciente criado com sucesso", "paciente_id": novo_paciente.id}
 
+@router.get("/paciente/{paciente_id}/", auth=jwt_auth)
+def obter_paciente_por_id(request, paciente_id: int):
+    # Obtendo o id do profissional do request.auth (autenticação do usuário)
+    user_id = request.auth
+
+    # Buscando o profissional no banco de dados (assumindo que o user_id é o id do Profissional)
+    profissional = get_object_or_404(Profissional, id=user_id)
+
+    # Buscando o paciente pelo ID e garantindo que pertença ao profissional autenticado
+    paciente = get_object_or_404(Paciente, id=paciente_id, id_profissional=profissional)
+
+    # Retornando os dados do paciente
+    return {
+        "id": paciente.id,
+        "nome": paciente.nome,
+        "email": paciente.email,
+        "celular": paciente.celular,
+        "genero": paciente.genero,
+        "dt_nascimento": paciente.dt_nascimento,
+        "foto": paciente.foto.url if paciente.foto else None,
+        "cpf": paciente.cpf,
+        "fuso_horario": paciente.fuso_horario,
+        "profissional_id": profissional.id,
+    }
+
 
 # Endpoint para listar os pacientes do médico logado
 @router.get("/pacientes/", auth=jwt_auth)
@@ -640,9 +666,10 @@ def listar_horarios_e_agendamentos(request):
 
         # Busca todos os agendamentos para o horário e dia da semana específico
         agendamentos = Agendamento.objects.filter(
+            Q(status="PENDENTE") | Q(status="CONFIRMADO"),
             profissional_id=user_id,
             horario_id=horario.id,
-            status="PENDENTE"
+          
         ).values("id", "paciente__nome", "horario__hora_inicio", "horario__hora_fim", "data", "tipo_secao")
 
         # Processa os agendamentos encontrados
@@ -722,7 +749,9 @@ def criar_agendamento(request, agendamento_data: AgendamentoCreateSchema):
             paciente=paciente,
             horario=horario,
             data=agendamento_data.data,
-            status="PENDENTE"
+            status="PENDENTE",
+            tipo_secao=agendamento_data.tipo_secao  
+
         )
 
         return JsonResponse({"message": "Agendamento criado com sucesso!", "agendamento_id": novo_agendamento.id}, status=201)
@@ -835,6 +864,7 @@ def criar_consulta(request, consulta_data: ConsultaCreateSchema):
             valor_final = profissional.valor_consulta,
             profissional=agendamento.profissional,  # Profissional vem do agendamento
             paciente=paciente,  # Paciente vem do agendamento
+            link_video_chamada = consulta_data.link_video_chamada,
             data=agendamento.data,  # Data da consulta é a mesma do agendamento
             hora=horario.hora_inicio,  # Horário da consulta é o hora_inicio do agendamento
             nome_paciente=paciente.nome,  # Nome do paciente
@@ -873,6 +903,7 @@ def listar_consultas(request):
             "telefone_paciente": consulta.paciente.celular,  # Aqui pegamos o telefone do paciente
             "horario_consulta": consulta.hora,
             "data_realizacao": consulta.data_realizacao,
+            "data":consulta.data,
             "observacoes": consulta.observacoes,
             "diagnostico": consulta.diagnostico,
             "prescricoes": consulta.prescricoes,
@@ -899,6 +930,7 @@ def obter_consulta(request, consulta_id: int):
             "data_realizacao": consulta.data_realizacao,
             "observacoes": consulta.observacoes,
             "diagnostico": consulta.diagnostico,
+            "data": consulta.data,
             "prescricoes": consulta.prescricoes, 
            "valor_consulta": consulta.valor_consulta,
             "desconto": consulta.desconto

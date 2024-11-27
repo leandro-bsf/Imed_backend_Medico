@@ -25,7 +25,7 @@ class RegisterSchema(BaseModel):
     telefone: str
     email: str
     senha: str
-    dt_nascimento: datetime  # Para armazenar a data de nascimento
+    dt_nascimento: date  # Para armazenar a data de nascimento
     genero: str  # Pode ser 'M', 'F' ou 'O'
     id_especialidade: int  # ID da especialidade
     documento: str  # Documento único, como CPF
@@ -44,7 +44,7 @@ class ProfissionalSchema(Schema):
     telefone:Optional[str]  # Campo opcional, com limite de tamanho
     email: Optional[str]   # Campo opcional, deve ser um email válido
     # senha: Optional[str] 
-    dt_nascimento: Optional[datetime]  # Campo opcional
+    dt_nascimento: Optional[date]  # Campo opcional
     genero: Optional[str]  # Campo opcional
     id_especialidade: Optional[int]  # Campo opcional
     documento: Optional[str]   # Campo opcional
@@ -106,7 +106,7 @@ class PacienteSchema(BaseModel):
     email: str
     celular: str
     genero: str
-    dt_nascimento: datetime
+    dt_nascimento: date
     foto: Optional[str] = None
     cpf: str
     fuso_horario: str       
@@ -116,7 +116,7 @@ class PacienteOutSchemaList(BaseModel):
     email: str
     celular: str
     genero: str
-    dt_nascimento: datetime
+    dt_nascimento: date
     # foto: Optional[str] 
     cpf: str
     qtd_consultas: int
@@ -133,7 +133,7 @@ class PacienteUpdateSchema(BaseModel):
     email: Optional[str]
     celular: Optional[str]
     genero: Optional[str]
-    dt_nascimento: Optional[datetime]
+    dt_nascimento: Optional[date]
     status: str
     # foto: Optional[str]
     cpf: Optional[str]
@@ -143,6 +143,10 @@ class AgendamentoCreateSchema(BaseModel):
     paciente_id: int
     horario_id: int
     data: date
+    tipo_secao: Optional[str] = None  # Novo campo
+
+    class Config:
+        orm_mode = True
 
 
 class AtualizarAgendamentoSchema(BaseModel):
@@ -154,6 +158,7 @@ class ConsultaCreateSchema(BaseModel):
     observacoes: Optional[str] = None
     diagnostico: Optional[str] = None
     prescricoes: Optional[str] = None
+    link_video_chamada: Optional[str] = None 
   
 
     class Config:
