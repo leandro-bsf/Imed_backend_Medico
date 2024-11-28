@@ -2,7 +2,7 @@ import bcrypt
 import jwt
 from django.utils import timezone
 from django.db.models import Q
-
+from datetime import time
 from datetime import datetime, timedelta ,date
 from ninja import NinjaAPI, Router 
 from rest_framework.exceptions import AuthenticationFailed
@@ -95,6 +95,8 @@ def register(request, data: RegisterSchema):
         documento=data.documento,
         cpf = data.cpf
     )
+    criar_horarios_padrao(profissional)
+
     return {"message": "User registered successfully", "user_id": profissional.id}
 
 @router.post("/login", response=TokenSchema)
@@ -242,6 +244,43 @@ def criar_horario(request, payload: SchemaCriahorario):
     return {"success": True, "message": "Horário criado com sucesso", "id_horario": novo_horario.id}
 
 
+def criar_horarios_padrao(profissional):
+    def gerar_intervalos(dia_semana, hora_inicio, hora_fim):
+        horarios = []
+        hora_atual = datetime.combine(datetime.today(), hora_inicio)
+        fim = datetime.combine(datetime.today(), hora_fim)
+        while hora_atual < fim:
+            proximo_horario = hora_atual + timedelta(hours=1)
+            horarios.append({
+                "dia_semana": dia_semana,
+                "hora_inicio": hora_atual.time(),
+                "hora_fim": proximo_horario.time()
+            })
+            hora_atual = proximo_horario
+        return horarios
+
+    # Horários de segunda a sexta
+    dias_uteis = ["segunda", "terca", "quarta", "quinta", "sexta"]
+    horarios = []
+    for dia in dias_uteis:
+        horarios += gerar_intervalos(dia, time(8, 0), time(12, 0))  # 8h-12h
+        horarios += gerar_intervalos(dia, time(13, 0), time(18, 0))  # 13h-18h
+
+    # Horários de sábado
+    horarios += gerar_intervalos("sabado", time(8, 0), time(12, 0))  # 8h-12h
+
+    # Adiciona os horários no banco de dados
+    for horario in horarios:
+        HorarioEspecialista.objects.create(
+            profissional=profissional,  # Instância do profissional
+            dia_semana=horario["dia_semana"],
+            hora_inicio=horario["hora_inicio"],
+            hora_fim=horario["hora_fim"],
+            disponivel='T'  # Define como disponível por padrão
+        )
+
+
+
  ##edita  horario 
 
 @router.put("/horarios/{horario_id}/", auth=jwt_auth)
@@ -284,6 +323,29 @@ def excluir_horario(request, horario_id: int):
     horario.delete()
 
     return {"success": True, "message": "Horário excluído com sucesso"}
+
+@router.delete("/horarios/", auth=jwt_auth)
+def excluir_horarios_em_lote(request, horario_ids: List[int]):
+    """
+      Endpoint permite excluir varios horarios de uma vezes.
+    """
+    user_id = request.auth
+    
+    # Obtém o profissional autenticado
+    profissional = get_object_or_404(Profissional, id=user_id)
+    
+    # Filtra os horários pertencentes ao profissional autenticado e com os IDs fornecidos
+    horarios = HorarioEspecialista.objects.filter(id__in=horario_ids, profissional=profissional)
+    
+    # Verifica se algum horário foi encontrado
+    if not horarios.exists():
+        return {"success": False, "message": "Nenhum horário encontrado para os IDs fornecidos."}
+
+    # Exclui os horários
+    total_excluidos = horarios.count()
+    horarios.delete()
+
+    return {"success": True, "message": f"{total_excluidos} horários excluídos com sucesso."}
 
 
 @router.get("/horarios/", response=List[HorarioEspecialistaSchema], auth=jwt_auth)
