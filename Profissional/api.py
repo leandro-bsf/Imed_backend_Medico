@@ -126,41 +126,44 @@ def editar_profissional(request, payload: ProfissionalSchema):
     try:
         # Passo 1: Pegar o token JWT do cabeçalho
         token = get_jwt_from_request(request)
-        
         if not token:
-            return {"detail": "Token not provided or invalid."}, 401
+            raise HttpError(401, "Token not provided or invalid.")
         
         # Passo 2: Decodificar o token e pegar o user_id
         user_id = get_user_id_from_token(token)
         if not user_id:
-            return {"detail": "Invalid or expired token."}, 401
+            raise HttpError(401, "Invalid or expired token.")
         
         # Passo 3: Consultar os dados do profissional no banco de dados pelo user_id
         profissional = get_object_or_404(Profissional, id=user_id)
 
-        profissional.nome =payload.nome
+        # Atualizar os campos do profissional
+        profissional.nome = payload.nome
         profissional.telefone = payload.telefone
         profissional.email = payload.email
         profissional.dt_nascimento = payload.dt_nascimento
-        profissional.genero =  payload.genero
+        profissional.genero = payload.genero
         profissional.id_especialidade = payload.id_especialidade
         profissional.documento = payload.documento
         profissional.cpf = payload.cpf
         profissional.tempo_atuacao = payload.tempo_atuacao
-       # profissional.foto = payload.foto
         profissional.fuso_horario = payload.fuso_horario
         profissional.valor_consulta = payload.valor_consulta
         profissional.chave_pix = payload.chave_pix
         profissional.modalidade_atendimento = payload.modalidade_atendimento
-        # Salva o objeto atualizado no banco de dados
+        
+        # Salvar as alterações
         profissional.save()
 
-        # Retorna a resposta como um dicionário
+        # Retorna uma resposta de sucesso
         return {"message": "Dados do profissional atualizados com sucesso!"}
 
+    except HttpError as e:
+        # Captura erros HttpError específicos
+        return {"error": e.detail}, e.status_code
     except Exception as e:
-        # Retorna a mensagem de erro como um dicionário com código de status 400
-        return {"error": str(e)}, 400
+        # Captura outros erros
+        return {"error": "Erro interno no servidor: " + str(e)}, 500
 
 
  ##obter dados o profissional logado
@@ -968,6 +971,7 @@ def listar_consultas(request):
             "data":consulta.data,
             "observacoes": consulta.observacoes,
             "diagnostico": consulta.diagnostico,
+            "link_video_chamada": consulta.diagnostico,
             "prescricoes": consulta.prescricoes,
             "valor_consulta": consulta.valor_consulta,
             "desconto": consulta.desconto,
@@ -993,6 +997,7 @@ def obter_consulta(request, consulta_id: int):
             "observacoes": consulta.observacoes,
             "diagnostico": consulta.diagnostico,
             "data": consulta.data,
+            "link_video_chamada": consulta.diagnostico,
             "prescricoes": consulta.prescricoes, 
            "valor_consulta": consulta.valor_consulta,
             "desconto": consulta.desconto
