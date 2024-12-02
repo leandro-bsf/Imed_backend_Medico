@@ -1031,18 +1031,29 @@ def atualizar_consulta(request, consulta_id: int, consulta_data: ConsultaUpdateS
 
 @router.delete("/consultas/{consulta_id}/", auth=jwt_auth)
 def deletar_consulta(request, consulta_id: int):
+    """
+    Deleta uma consulta específica e o agendamento associado do profissional autenticado.
+    """
     try:
         user_id = request.auth  # ID do profissional autenticado
 
         # Busca a consulta que pertence ao profissional
-        consulta = Consulta.objects.get(id=consulta_id, agendamento__profissional_id=user_id)
+        consulta = Consulta.objects.get(id=consulta_id, profissional_id=user_id)
+
+        # Exclui o agendamento associado antes de excluir a consulta
+        if consulta.agendamento:
+            consulta.agendamento.delete()
+
+        # Exclui a consulta
         consulta.delete()
 
-        return JsonResponse({"message": "Consulta deletada com sucesso!"}, status=200)
+        return JsonResponse({"message": "Consulta e agendamento associados deletados com sucesso!"}, status=200)
 
     except Consulta.DoesNotExist:
         return JsonResponse({"message": "Consulta não encontrada ou não pertence ao profissional."}, status=404)
-
+    except Exception as e:
+        return JsonResponse({"message": f"Erro ao deletar consulta: {str(e)}"}, status=500)
+    
 
 @router.post("/despesas/", auth=jwt_auth)
 def criar_despesa(request, payload: DespesaCreateSchema):
