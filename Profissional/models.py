@@ -122,6 +122,7 @@ class Agendamento(models.Model):
     
 
 class Consulta(models.Model):
+    SITUACAO_CHOICES = (('Aberta', 'Aberta'),('Fechada', 'Fechada'), )
     agendamento = models.OneToOneField(Agendamento, on_delete=models.CASCADE)  # Ligação direta com o Agendamento
     data_realizacao = models.DateField(auto_now_add=True)  # Data e hora da consulta
     observacoes = models.TextField(blank=True, null=True)  # Observações ou notas da consulta
@@ -137,6 +138,12 @@ class Consulta(models.Model):
     nome_paciente = models.URLField(max_length=255, blank=True, null=True)
     link_video_chamada = models.CharField(blank=True, null=True)
     telefone_paciente = models.CharField(blank=True, null=True)
+    
+    
+    situacao = models.CharField(
+        choices=SITUACAO_CHOICES,
+        default='Aberta'
+    )
     def __str__(self):
         return f"Consulta de {self.agendamento.paciente} em {self.data_realizacao}"
     

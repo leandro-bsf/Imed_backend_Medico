@@ -971,6 +971,7 @@ def listar_consultas(request):
             "data":consulta.data,
             "observacoes": consulta.observacoes,
             "diagnostico": consulta.diagnostico,
+            "situacao_consulta": consulta.situacao ,
             "link_video_chamada": consulta.link_video_chamada,
             "prescricoes": consulta.prescricoes,
             "valor_consulta": consulta.valor_consulta,
@@ -998,6 +999,7 @@ def obter_consulta(request, consulta_id: int):
             "diagnostico": consulta.diagnostico,
             "data": consulta.data,
             "link_video_chamada": consulta.link_video_chamada,
+            "situacao": consulta.situacao ,
             "prescricoes": consulta.prescricoes, 
            "valor_consulta": consulta.valor_consulta,
             "desconto": consulta.desconto
@@ -1021,6 +1023,7 @@ def atualizar_consulta(request, consulta_id: int, consulta_data: ConsultaUpdateS
         consulta.diagnostico = consulta_data.diagnostico
         consulta.prescricoes = consulta_data.prescricoes
         consulta.desconto =  consulta_data.desconto
+        consulta.situacao =  consulta.situacao
         consulta.save()
 
         return JsonResponse({"message": "Consulta atualizada com sucesso!"}, status=200)

@@ -169,6 +169,7 @@ class ConsultaUpdateSchema(BaseModel):
     observacoes: Optional[str] = None  # Novas observações da consulta
     diagnostico: Optional[str] = None  # Novo diagnóstico da consulta
     desconto: float 
+    situacao: Optional[str]
     prescricoes: Optional[str] = None  # Novas prescrições ou recomendações
  
 
