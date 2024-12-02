@@ -971,7 +971,7 @@ def listar_consultas(request):
             "data":consulta.data,
             "observacoes": consulta.observacoes,
             "diagnostico": consulta.diagnostico,
-            "link_video_chamada": consulta.diagnostico,
+            "link_video_chamada": consulta.link_video_chamada,
             "prescricoes": consulta.prescricoes,
             "valor_consulta": consulta.valor_consulta,
             "desconto": consulta.desconto,
@@ -997,12 +997,12 @@ def obter_consulta(request, consulta_id: int):
             "observacoes": consulta.observacoes,
             "diagnostico": consulta.diagnostico,
             "data": consulta.data,
-            "link_video_chamada": consulta.diagnostico,
+            "link_video_chamada": consulta.link_video_chamada,
             "prescricoes": consulta.prescricoes, 
            "valor_consulta": consulta.valor_consulta,
             "desconto": consulta.desconto
         }
-
+        print(consulta_data)
         return JsonResponse({"consulta": consulta_data}, status=200)
 
     except Consulta.DoesNotExist:

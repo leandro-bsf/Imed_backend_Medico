@@ -134,7 +134,7 @@ class Consulta(models.Model):
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE)
     data = models.DateTimeField(blank=True, null=True)
     hora = models.TimeField(blank=True, null=True)
-    nome_paciente = models.CharField(blank=True, null=True)
+    nome_paciente = models.URLField(max_length=255, blank=True, null=True)
     link_video_chamada = models.CharField(blank=True, null=True)
     telefone_paciente = models.CharField(blank=True, null=True)
     def __str__(self):
