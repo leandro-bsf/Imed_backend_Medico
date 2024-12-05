@@ -103,12 +103,12 @@ class EnderecoEspecialistaSchemaList(BaseModel):
 
 class PacienteSchema(BaseModel):
     nome: str
-    email: str
+    email: Optional[str]
     celular: str
-    genero: str
-    dt_nascimento: date
+    genero: Optional[str]
+    dt_nascimento: Optional[str]
     foto: Optional[str] = None
-    cpf: str
+    cpf: Optional[str]
     fuso_horario: str       
 class PacienteOutSchemaList(BaseModel):
     id: int
@@ -134,7 +134,7 @@ class PacienteUpdateSchema(BaseModel):
     celular: Optional[str]
     genero: Optional[str]
     dt_nascimento: Optional[date]
-    status: str
+    status: Optional[str]
     # foto: Optional[str]
     cpf: Optional[str]
     fuso_horario: Optional[str]
