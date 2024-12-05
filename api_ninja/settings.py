@@ -43,7 +43,7 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'api_ninja.urls'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Frontend rodando localmente
-   ## "https://meu-front-end.com",  apos subir a aplicacao por o link aqui
+    "https://imed-frontend-especialista.vercel.app/",  apos subir a aplicacao por o link aqui
 ]
 TEMPLATES = [
     {
