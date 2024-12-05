@@ -263,14 +263,14 @@ def criar_horarios_padrao(profissional):
         return horarios
 
     # Horários de segunda a sexta
-    dias_uteis = ["segunda", "terca", "quarta", "quinta", "sexta"]
+    dias_uteis = ["Segunda", "Terca", "Quarta", "Quinta", "Sexta"]
     horarios = []
     for dia in dias_uteis:
         horarios += gerar_intervalos(dia, time(8, 0), time(12, 0))  # 8h-12h
         horarios += gerar_intervalos(dia, time(13, 0), time(18, 0))  # 13h-18h
 
     # Horários de sábado
-    horarios += gerar_intervalos("sabado", time(8, 0), time(12, 0))  # 8h-12h
+    horarios += gerar_intervalos("Sabado", time(8, 0), time(12, 0))  # 8h-12h
 
     # Adiciona os horários no banco de dados
     for horario in horarios:
