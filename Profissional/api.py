@@ -1023,7 +1023,7 @@ def atualizar_consulta(request, consulta_id: int, consulta_data: ConsultaUpdateS
         consulta.diagnostico = consulta_data.diagnostico
         consulta.prescricoes = consulta_data.prescricoes
         consulta.desconto =  consulta_data.desconto
-        consulta.situacao =  consulta.situacao
+        consulta.situacao =  consulta_data.situacao
         consulta.save()
 
         return JsonResponse({"message": "Consulta atualizada com sucesso!"}, status=200)
