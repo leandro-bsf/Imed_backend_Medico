@@ -263,7 +263,7 @@ def criar_horarios_padrao(profissional):
         return horarios
 
     # Horários de segunda a sexta
-    dias_uteis = ["Segunda", "Terca", "Quarta", "Quinta", "Sexta"]
+    dias_uteis = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"]
     horarios = []
     for dia in dias_uteis:
         horarios += gerar_intervalos(dia, time(8, 0), time(12, 0))  # 8h-12h
