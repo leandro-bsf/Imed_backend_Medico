@@ -20,7 +20,7 @@ router = Router()
 api = NinjaAPI()
 
 
-SECRET_KEY = "b&=kv*m2x0^d5z7$p4v+1w#f!@8s9+qc_2%3w-#n@4!e7c&j^y"  # Altere para uma chave secreta forte
+SECRET_KEY = "b&=kv*m2x0^d5z7$p4v+1w#f!@8s9+qc_2%3w-#n@4!e7c&j^y"  
 
 class JWTAuth(HttpBearer):
     def authenticate(self, request, token):
@@ -77,7 +77,23 @@ def create_access_token(data: dict, expires_delta: timedelta = timedelta(hours=1
     return encoded_jwt
 
 @router.post("/register")
+
 def register(request, data: RegisterSchema):
+    """
+### Endpoint: Registro de Especialista
+
+Este endpoint realiza o registro de um **Especialista**.
+
+#### Parâmetros:
+- **Gênero**:
+  - `M`: Masculino
+  - `F`: Feminino
+  - `O`: Outro \n
+- **Modalidade de Atendimento**:
+  - `online`: Online
+  - `presencial`: Presencial
+  - `ambos`: Ambos (padrão: `online`)
+"""
     if Profissional.objects.filter(email=data.email).exists():
         return {"error": "Email already registered"}
     if Profissional.objects.filter(documento=data.documento).exists():
@@ -100,7 +116,15 @@ def register(request, data: RegisterSchema):
     return {"message": "User registered successfully", "user_id": profissional.id}
 
 @router.post("/login", response=TokenSchema)
+  
+
 def login(request, data: LoginSchema):
+    """
+     Endpoint: Autentica o **Especialista**.
+
+   Retorna o Token.
+
+    """
     try:
         usuario = Profissional.objects.get(email=data.email)
         if not verify_password(data.senha, usuario.senha):
@@ -123,6 +147,22 @@ api.add_router("/auth", router)
 
 @api.put('/profissional/editar/', auth=jwt_auth)
 def editar_profissional(request, payload: ProfissionalSchema):
+    """
+### Endpoint: Atualizar dados de Especialista
+
+Este endpoint atualziar os dados de um **Especialista**.
+
+#### Parâmetros:
+- **Gênero**:
+  - `M`: Masculino
+  - `F`: Feminino
+  - `O`: Outro \n
+- **Modalidade de Atendimento**:
+  - `online`: Online
+  - `presencial`: Presencial
+  - `ambos`: Ambos (padrão: `online`)
+"""
+     
     try:
         # Passo 1: Pegar o token JWT do cabeçalho
         token = get_jwt_from_request(request)
@@ -169,6 +209,9 @@ def editar_profissional(request, payload: ProfissionalSchema):
  ##obter dados o profissional logado
 @router.get("/profissional", auth=jwt_auth)
 def get_professional_data(request):
+    """
+     Endpoint: Retorna dados do **Especialista** logado.
+    """
     # Passo 1: Pegar o token JWT do cabeçalho
     token = get_jwt_from_request(request)
     
@@ -221,6 +264,12 @@ def get_professional_data(request):
 ## adiciona horario
 @router.post("/horarios/", auth=jwt_auth)
 def criar_horario(request, payload: SchemaCriahorario):
+    """
+     Endpoint: Registrar **Horario** para o **Especialista** logado. \n
+     **Parametros:** \n
+         dia_semana: Segunda , Terça , Quarta , Quinta , Sexta ,Sábado \n
+         hora_inico / hora_fim: hh:mm
+    """
     user_id = request.auth
 
     profissional = get_object_or_404(Profissional, id=user_id)
@@ -249,6 +298,7 @@ def criar_horario(request, payload: SchemaCriahorario):
 
 def criar_horarios_padrao(profissional):
     def gerar_intervalos(dia_semana, hora_inicio, hora_fim):
+    
         horarios = []
         hora_atual = datetime.combine(datetime.today(), hora_inicio)
         fim = datetime.combine(datetime.today(), hora_fim)
@@ -288,6 +338,12 @@ def criar_horarios_padrao(profissional):
 
 @router.put("/horarios/{horario_id}/", auth=jwt_auth)
 def editar_horario(request, horario_id: int, payload: SchemaCriahorario):
+    """
+     **Endpoint:** Edita **Horario** para o **Especialista** logado. \n
+     **Parametros:** \n
+         dia_semana: Segunda , Terça` , Quarta , Quinta , Sexta ,Sábado \n
+         hora_inico / hora_fim: hh:mm
+    """
     user_id = request.auth
     profissional = get_object_or_404(Profissional, id=user_id)
     horario = get_object_or_404(HorarioEspecialista, id=horario_id, profissional=profissional)
@@ -314,7 +370,12 @@ def editar_horario(request, horario_id: int, payload: SchemaCriahorario):
 ##deleta horario 
 
 @router.delete("/horarios/{horario_id}/", auth=jwt_auth)
+
 def excluir_horario(request, horario_id: int):
+    """
+     **Endpoint:** Para excluir **Horario** para o **Especialista** logado atravéz do **Id_horario**. \n
+    
+    """
     user_id = request.auth
     # Obtém o profissional autenticado
     profissional = get_object_or_404(Profissional, id=user_id)
@@ -330,7 +391,9 @@ def excluir_horario(request, horario_id: int):
 @router.delete("/horarios/", auth=jwt_auth)
 def excluir_horarios_em_lote(request, horario_ids: List[int]):
     """
-      Endpoint permite excluir varios horarios de uma vezes.
+      **Endpoint:** permite excluir varios horarios de uma vezes. \n
+        **parametros:\n
+             lista de id:  [6,3,8,] \n
     """
     user_id = request.auth
     
@@ -353,6 +416,9 @@ def excluir_horarios_em_lote(request, horario_ids: List[int]):
 
 @router.get("/horarios/", response=List[HorarioEspecialistaSchema], auth=jwt_auth)
 def obter_horarios_profissional(request):
+    """
+      **Endpoint:** Retorna os horarios do **Profissional** logado.
+    """
     user_id = request.auth  # Aqui você deve receber o user_id corretamente autenticado
     
     
@@ -386,6 +452,10 @@ def obter_horarios_profissional(request):
 
 @router.post("/avaliacoes", auth=jwt_auth)
 def criar_avaliacao(request,  payload: AvaliacaoSchema):
+    """
+      **Endpoint:**  Receber as avaliacoes dos **Especialista**.
+            sem implementado para paciente
+    """
     user_id = request.auth
 
     profissional = get_object_or_404(Profissional, id=user_id)
@@ -401,6 +471,10 @@ def criar_avaliacao(request,  payload: AvaliacaoSchema):
 
 @router.put("/avaliacoes/{avaliacao_id}", auth=jwt_auth)
 def editar_avaliacao(request, avaliacao_id: int, data: AtualizarAvaliacaoSchema):
+    """
+      **Endpoint:**  Para  editar avaliacoes dos **Especialista**.
+            sera implementado para paciente
+    """
     user_id = request.auth.get("user_id")
     profissional = get_object_or_404(Profissional, id=user_id)
     avaliacao = get_object_or_404(Avaliacao, id=avaliacao_id, especialista=profissional)
@@ -413,6 +487,10 @@ def editar_avaliacao(request, avaliacao_id: int, data: AtualizarAvaliacaoSchema)
 
 @router.delete("/avaliacoes/{avaliacao_id}", auth=jwt_auth)
 def excluir_avaliacao(request, avaliacao_id: int):
+    """
+      **Endpoint:**  Para excluir avaliacoes do **Especialista**.
+            sera implementado para paciente
+    """
     user_id = request.auth.get("user_id")
     profissional = get_object_or_404(Profissional, id=user_id)
     avaliacao = get_object_or_404(Avaliacao, id=avaliacao_id, especialista=profissional)
@@ -425,6 +503,10 @@ def excluir_avaliacao(request, avaliacao_id: int):
 
 @router.get("/avaliacoes/", response=List[AvaliacaoSchema], auth=jwt_auth)
 def obter_avaliacoes_profissional(request):
+    """
+      **Endpoint:**  Para lista as avaliacoes do **Especialista**.
+            sera implementado para paciente
+    """
     user_id = request.auth
     
     # Obtém o profissional autenticado
@@ -440,6 +522,10 @@ def obter_avaliacoes_profissional(request):
 
 @router.get("/avaliacoes/{id_profissional}", response=List[AvaliacaoSchema])
 def obter_avaliacoes_por_profissional(request, id_profissional: int):
+    """
+      **Endpoint:**  Retorna as avalicoes de id de um **Especialista**.
+            sera implementado para paciente
+    """   
     # Obtém o profissional com base no ID passado na URL
     profissional = get_object_or_404(Profissional, id=id_profissional)
     
@@ -452,6 +538,10 @@ def obter_avaliacoes_por_profissional(request, id_profissional: int):
 
 @router.post("/enderecos", auth=jwt_auth)
 def criar_endereco(request, data: EnderecoEspecialistaSchema):
+    """
+      **Endpoint:** Adiciona  N endereco para um **Especialista**.
+           
+    """
     # Se `request.auth` é o `id_especialista` diretamente, use-o como tal
     id_especialista = request.auth  # Aqui o id_especialista é diretamente o valor inteiro
     
@@ -477,6 +567,10 @@ def criar_endereco(request, data: EnderecoEspecialistaSchema):
 
 @router.put("/enderecos/{endereco_id}", auth=jwt_auth)
 def editar_endereco(request, endereco_id: int, data: EnderecoEspecialistaSchema):
+    """
+      **Endpoint:** Editar  endereco de um **Especialista**.
+           
+    """
     user_id = request.auth
     profissional = get_object_or_404(Profissional, id=user_id)
     endereco = get_object_or_404(EnderecoEspecialista, id=endereco_id, id_especialista=profissional.id)
@@ -494,6 +588,10 @@ def editar_endereco(request, endereco_id: int, data: EnderecoEspecialistaSchema)
 
 @router.delete("/enderecos/{endereco_id}", auth=jwt_auth)
 def excluir_endereco(request, endereco_id: int):
+    """
+      **Endpoint:** Excluir  endereco para um **Especialista**.
+           
+    """
     user_id = request.auth
     profissional = get_object_or_404(Profissional, id=user_id)
     endereco = get_object_or_404(EnderecoEspecialista, id=endereco_id, id_especialista=profissional.id)
@@ -505,6 +603,10 @@ def excluir_endereco(request, endereco_id: int):
 ###retorna  enderecos do profissional logado
 @router.get("/endereco/", response=List[EnderecoEspecialistaSchemaList], auth=jwt_auth)
 def obter_endereco_profissional(request):
+    """
+      **Endpoint:** lista  endereco para do  **Especialista** logado.
+           
+    """
     user_id = request.auth  # Aqui você deve receber o user_id corretamente autenticado
     
     if not user_id:
@@ -546,6 +648,10 @@ def obter_endereco_profissional(request):
     
 @router.post("/paciente/" , auth=jwt_auth)
 def adicionar_paciente(request, paciente: PacienteSchema):
+    """
+      **Endpoint:**  Para adicionar um paciente para o **Especialista**.
+           
+    """
     # Obtendo o id do profissional do request.auth (autenticação do usuário)
     user_id = request.auth
 
@@ -569,6 +675,10 @@ def adicionar_paciente(request, paciente: PacienteSchema):
 
 @router.get("/paciente/{paciente_id}/", auth=jwt_auth)
 def obter_paciente_por_id(request, paciente_id: int):
+    """
+      **Endpoint:** Retorna os dados de um paciente atrave do **id**.
+           
+    """
     # Obtendo o id do profissional do request.auth (autenticação do usuário)
     user_id = request.auth
 
@@ -596,6 +706,10 @@ def obter_paciente_por_id(request, paciente_id: int):
 # Endpoint para listar os pacientes do médico logado
 @router.get("/pacientes/", auth=jwt_auth)
 def listar_pacientes(request):
+    """
+      **Endpoint:**  Lista pacientes do **Profissional** logado.
+           
+    """
     user_id = request.auth
     profissional = get_object_or_404(Profissional, id=user_id)
     pacientes = Paciente.objects.filter(id_profissional=profissional)
@@ -604,6 +718,10 @@ def listar_pacientes(request):
 # Endpoint para deletar um paciente do médico logado
 @router.delete("/paciente/{paciente_id}/" , auth=jwt_auth)
 def deletar_paciente(request, paciente_id: int):
+    """
+    **Endpoint:**  Para excluir um paciente atravez do id   \n
+         
+    """
     # Obtendo o id do profissional do request.auth (autenticação do usuário)
     user_id = request.auth
 
@@ -620,6 +738,10 @@ def deletar_paciente(request, paciente_id: int):
 # Endpoint para atualizar os dados do paciente do médico logado
 @router.put("/paciente/{paciente_id}/" ,  auth=jwt_auth)
 def atualizar_paciente(request, paciente_id: int, dados: PacienteUpdateSchema):
+    """
+      **Endpoint:**  Atualiza os paciente  do **Especialista** logado.
+           
+    """
     # Obtendo o id do profissional do request.auth (autenticação do usuário)
     user_id = request.auth
 
@@ -654,7 +776,7 @@ DIA_SEMANA_MAPA = {
 @router.get("/agendamentos/disponiveis/", auth=jwt_auth)
 def listar_agendamentos_disponiveis(request):
     """
-    Lista todos os horários disponíveis para o profissional autenticado.
+       **Endpoint:** Lista todos os horários disponíveis para o profissional autenticado.
     """
     user_id = request.auth  # Obtém o ID do profissional autenticado
     print(f"ID do profissional autenticado: {user_id}")  # Verifique o ID
@@ -709,6 +831,7 @@ def listar_agendamentos_disponiveis(request):
 @router.get("/agendamentos/horarios/", auth=jwt_auth)
 def listar_horarios_e_agendamentos(request):
     """
+    **Endpoint:**  Lista Horario e agendamento: 
     Retorna todos os horários e agendamentos (passados, presentes e futuros) para o profissional autenticado.
     Caso tenha um agendamento, retorna o horário, id do agendamento, nome do paciente e tipo de seção.
     """
@@ -769,6 +892,11 @@ def listar_horarios_e_agendamentos(request):
 
 @router.post("/agendamentos/", auth=jwt_auth)
 def criar_agendamento(request, agendamento_data: AgendamentoCreateSchema):
+    """
+    **Endpoint:**  Para Adicionar um agendamento para  **Especialista** logado.  \n
+         Tipo_secao:  'Online' , 'Presencial' , 'Indiponivel' \n
+         
+    """
     try:
         # Extrai o user_id do request.auth
         user_id = request.auth
@@ -835,7 +963,7 @@ def criar_agendamento(request, agendamento_data: AgendamentoCreateSchema):
 @router.get("/agendamentos/profissional/", auth=jwt_auth)
 def listar_agendamentos_profissional(request):
     """
-    Retorna os agendamentos do profissional autenticado.
+       **Endpoint:** Retorna os agendamentos do profissional autenticado.
     """
     user_id = request.auth  # ID do profissional autenticado
 
@@ -859,7 +987,9 @@ def listar_agendamentos_profissional(request):
 @router.put("/agendamentos/{agendamento_id}", auth=jwt_auth)
 def atualizar_agendamento(request, agendamento_id: int, payload: AtualizarAgendamentoSchema):
     """
-    Atualiza os dados de um agendamento existente.
+    **Endpoint:** Atualiza os dados de um agendamento existente. \n
+         Tipo_secao:  'Online' , 'Presencial' , 'Indiponivel' \n
+         status: 'Pendente' ,  'Cancelado' , 'Confirmado'  \n
     """
     # Busca o agendamento pelo ID ou retorna 404 se não encontrado
     agendamento = get_object_or_404(Agendamento, id=agendamento_id)
@@ -887,7 +1017,7 @@ def atualizar_agendamento(request, agendamento_id: int, payload: AtualizarAgenda
 @router.delete("/agendamentos/{agendamento_id}/", auth=jwt_auth)
 def deletar_agendamento(request, agendamento_id: int):
     """
-    Deleta um agendamento específico do profissional autenticado.
+       **Endpoint:** Deleta um agendamento específico do profissional autenticado.
     """
     try:
         user_id = request.auth  # Obtém o ID do profissional autenticado
@@ -908,6 +1038,11 @@ def deletar_agendamento(request, agendamento_id: int):
 
 @router.post("/consultas/", auth=jwt_auth)
 def criar_consulta(request, consulta_data: ConsultaCreateSchema):
+    """
+    **Endpoint:**  Para Adicionar uma consulta para  o **Especialista** logado.  \n
+         situacao: default='Aberta'  \n
+         
+    """    
     try:
         # ID do profissional autenticado
         user_id = request.auth  
@@ -955,6 +1090,11 @@ def criar_consulta(request, consulta_data: ConsultaCreateSchema):
 
 @router.get("/consultas/", auth=jwt_auth)
 def listar_consultas(request):
+    """
+    **Endpoint:**  Para lista  consultas do **Especialista** logado.  \n
+      
+         
+    """  
     user_id = request.auth  # ID do profissional autenticado
     
     # Filtra consultas apenas para os agendamentos do profissional
@@ -986,6 +1126,10 @@ def listar_consultas(request):
 
 @router.get("/consultas/{consulta_id}/", auth=jwt_auth)
 def obter_consulta(request, consulta_id: int):
+    """
+    **Endpoint:**  Para buscar consulta atravez do id  \n
+         
+    """  
     try:
         user_id = request.auth  # ID do profissional autenticado
 
@@ -1012,6 +1156,10 @@ def obter_consulta(request, consulta_id: int):
     
 @router.put("/consultas/{consulta_id}/", auth=jwt_auth)
 def atualizar_consulta(request, consulta_id: int, consulta_data: ConsultaUpdateSchema):
+    """
+    **Endpoint:**  Para atualizar uma consulta atravez do  id.  \n
+         situacao: 'Aberta' , `Fechada`  \n
+    """     
     try:
         user_id = request.auth  # ID do profissional autenticado
 
@@ -1035,7 +1183,7 @@ def atualizar_consulta(request, consulta_id: int, consulta_data: ConsultaUpdateS
 @router.delete("/consultas/{consulta_id}/", auth=jwt_auth)
 def deletar_consulta(request, consulta_id: int):
     """
-    Deleta uma consulta específica e o agendamento associado do profissional autenticado.
+       **Endpoint:** Deleta uma consulta específica e o agendamento associado do profissional autenticado.
     """
     try:
         user_id = request.auth  # ID do profissional autenticado
@@ -1060,6 +1208,10 @@ def deletar_consulta(request, consulta_id: int):
 
 @router.post("/despesas/", auth=jwt_auth)
 def criar_despesa(request, payload: DespesaCreateSchema):
+    """
+    **Endpoint:**  Para criar um despesa para **Profissional** logado  \n
+         tipo: 'Fixa','Variável' , 'Outra' \n
+    """ 
     user_id = request.auth
     profissional = get_object_or_404(Profissional, id=user_id)
 
@@ -1077,6 +1229,10 @@ def criar_despesa(request, payload: DespesaCreateSchema):
 ## lista despesas
 @router.get("/despesas/", auth=jwt_auth)
 def listar_despesas(request):
+    """
+    **Endpoint:**  lista  despesa do **Profissional** logado  \n
+         
+    """
     user_id = request.auth
     profissional = get_object_or_404(Profissional, id=user_id)
 
@@ -1097,6 +1253,10 @@ def listar_despesas(request):
 ## edita despesa
 @router.put("/despesas/{despesa_id}/", auth=jwt_auth)
 def editar_despesa(request, despesa_id: int, payload: DespesaUpdateSchema):
+    """
+    **Endpoint:**  edita  despesa atravez do id do **Profissional** logado  \n
+         
+    """
     user_id = request.auth
     despesa = get_object_or_404(Despesa, id=despesa_id, profissional_id=user_id)
 
@@ -1116,6 +1276,10 @@ def editar_despesa(request, despesa_id: int, payload: DespesaUpdateSchema):
 ## deleta despesa
 @router.delete("/despesas/{despesa_id}/", auth=jwt_auth)
 def deletar_despesa(request, despesa_id: int):
+    """
+    **Endpoint:**  delete   despesa do **Profissional** logado  \n
+         
+    """
     user_id = request.auth
     despesa = get_object_or_404(Despesa, id=despesa_id, profissional_id=user_id)
 

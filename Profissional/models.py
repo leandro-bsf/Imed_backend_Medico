@@ -9,7 +9,7 @@ class Profissional(models.Model):
     dt_nascimento = models.DateField()  # Data de nascimento do usuário
     genero = models.CharField(max_length=1, choices=[('M', 'Masculino'), ('F', 'Feminino'), ('O', 'Outro')])  # Gênero do usuário
     id_especialidade = models.IntegerField()  # ID da especialidade do usuário (se aplicável)
-    documento = models.CharField(max_length=20, unique=True)  # Documento único (CPF, RG, etc.)
+    documento = models.CharField(max_length=20,  null=True,   blank=True )  # Documento único (CPF, RG, etc.)
     cpf = models.CharField(max_length=14, unique=True)
     # Novos campos adicionados
     tempo_atuacao = models.PositiveIntegerField(null=True)  # Tempo de atuação em anos
@@ -22,6 +22,7 @@ class Profissional(models.Model):
         return self.nome
     class Meta:
         db_table = 'Profissional' 
+        
 
 class HorarioEspecialista(models.Model):
     profissional = models.ForeignKey(Profissional, on_delete=models.CASCADE)  # Relaciona o horário com o profissional
@@ -87,10 +88,10 @@ class Paciente(models.Model):
     email = models.EmailField(unique=True)
     celular = models.CharField(max_length=15)
     genero = models.CharField(max_length=1, choices=GENERO_CHOICES)
-    dt_nascimento = models.DateField()
+    dt_nascimento = models.DateField(null=True ,blank=True)
     foto = models.ImageField(upload_to='fotos_profissionais/', null=True, blank=True)
     cpf = models.CharField(max_length=11, unique=True)
-    fuso_horario = models.CharField(max_length=50)
+    fuso_horario = models.CharField(max_length=50 ,blank=True ,  null=True)
     qtd_consultas  = models.IntegerField(default=0)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='A')  # Adicionando o campo de status
     dt_ultima_consulta = models.DateField(null=True, blank=True) 
